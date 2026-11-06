@@ -1,0 +1,9 @@
+# Robots.txt for Vanir Group (https://vanirgroup.com)
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+
+# Sitemap locations
+Sitemap: https://vanirgroup.com/sitemap.xml
+Sitemap: https://vanirgroup.com/sitemap_index.xml

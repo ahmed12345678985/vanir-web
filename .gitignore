@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Production builds & packaging
+dist/
+build-dist/
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+
+# Environment & Secret credentials (CRITICAL - DO NOT COMMIT)
+.env
+.env.local
+.env.production
+.env*.local
+firebase-key.json
+gen-lang-client-*.json
+service-account*.json
+*.pem
+*.key
+*.keystore
+test_dist.mjs
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+stderr.log
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sw?
+.claude/
+scratch/
+
+# Nested duplicate directories
+travel-gold-main/

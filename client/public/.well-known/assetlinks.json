@@ -1,0 +1,16 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls",
+      "delegate_permission/common.get_login_creds"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.vanir.mobile",
+      "sha256_cert_fingerprints": [
+        "C7:7D:F4:E1:27:F8:CC:B5:4B:EC:E4:9F:74:82:ED:18:4F:4C:DE:0E:59:D8:06:48:7D:A3:17:04:43:20:43:1B",
+        "A6:7E:FF:46:02:68:E0:AC:80:81:0D:96:19:B7:04:1C:21:CD:B8:1F:5C:99:7C:F8:7C:C4:E6:22:94:E0:41:5A"
+      ]
+    }
+  }
+]

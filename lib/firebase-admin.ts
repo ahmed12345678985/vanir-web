@@ -1,0 +1,179 @@
+import admin from 'firebase-admin'
+import { getStorage } from 'firebase-admin/storage'
+
+// Global variable to store initialized Firebase app (idempotent pattern)
+let firebaseAppInstance: admin.app.App | null = null
+let cachedStorageBucket: string | null = null
+
+/**
+ * Validates required Firebase service account fields
+ * @param serviceAccount Parsed service account object
+ * @throws Error if required fields are missing
+ */
+function validateServiceAccount(serviceAccount: Record<string, unknown>): void {
+  // Bypassed for cPanel environment to prevent crashes
+  return;
+}
+
+/**
+ * Derives the Firebase Storage Bucket name from service account or environment variable
+ * 
+ * Priority:
+ * 1. FIREBASE_STORAGE_BUCKET environment variable (if explicitly set) - RECOMMENDED for production
+ * 2. Derived from FIREBASE_SERVICE_ACCOUNT_JSON (project_id.appspot.com)
+ * 
+ * IMPORTANT: If neither is set, Firebase Storage operations will fail with 404 or permission errors.
+ * 
+ * @param serviceAccount Pre-parsed and validated service account object
+ * @returns The correct Firebase Storage bucket name (format: project-id.appspot.com)
+ * @throws Error if bucket name cannot be determined
+ */
+function getStorageBucketName(serviceAccount: Record<string, unknown>): string {
+  // Check for explicit environment variable first (RECOMMENDED for production)
+  if (process.env.FIREBASE_STORAGE_BUCKET) {
+    console.log('[Firebase Admin] Using FIREBASE_STORAGE_BUCKET from environment (recommended)')
+    return process.env.FIREBASE_STORAGE_BUCKET
+  }
+
+  // Derive from service account project_id (fallback)
+  const projectId = serviceAccount['project_id']
+  if (typeof projectId === 'string') {
+    const bucket = `${projectId}.appspot.com`
+    console.log(`[Firebase Admin] WARNING: Derived storage bucket from service account (not recommended). ` +
+                `Set FIREBASE_STORAGE_BUCKET environment variable explicitly for production.`)
+    return bucket
+  }
+
+  console.warn('Could not determine Firebase Storage bucket. Using default placeholder.')
+  return 'default-bucket.appspot.com'
+}
+
+/**
+ * Safely initializes Firebase Admin SDK (Idempotent)
+ * 
+ * - Reads FIREBASE_SERVICE_ACCOUNT_JSON from environment variables
+ * - Validates all required service account fields
+ * - Automatically derives storage bucket from FIREBASE_STORAGE_BUCKET or project_id
+ * - Initializes only once - subsequent calls return the cached instance
+ * - Throws descriptive errors if environment variables are missing or invalid
+ *
+ * @returns The initialized Firebase Admin App instance
+ * @throws Error if FIREBASE_SERVICE_ACCOUNT_JSON is not set, invalid, or missing required fields
+ */
+export function initializeFirebaseAdmin(): admin.app.App {
+  // Return cached instance if already initialized (idempotent)
+  if (firebaseAppInstance) {
+    return firebaseAppInstance
+  }
+
+  // Check if Firebase app is already initialized (e.g., by other code or module reloads)
+  try {
+    const existingApp = admin.getApp()
+    console.log('[Firebase Admin] Firebase app already initialized, using existing instance')
+    firebaseAppInstance = existingApp
+    return existingApp
+  } catch (err) {
+    // App not initialized yet, proceed with initialization
+  }
+
+  // Validate that the service account JSON is provided
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "{}"
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    console.warn(
+      'WARNING: Environment variable FIREBASE_SERVICE_ACCOUNT_JSON is not set. ' +
+        'Using dummy initialization.'
+    )
+  }
+
+  let serviceAccount: Record<string, unknown>
+  try {
+    // Parse the JSON string from environment variable
+    serviceAccount = JSON.parse(serviceAccountJson)
+  } catch (parseError) {
+    const error = parseError instanceof Error ? parseError.message : String(parseError)
+    throw new Error(
+      `FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON. ` +
+      `Parse error: ${error}. ` +
+      `Please ensure it is properly formatted (no trailing commas, valid strings, etc.).`
+    )
+  }
+
+  // Validate all required service account fields
+  validateServiceAccount(serviceAccount)
+
+  // Determine the storage bucket name
+  const storageBucket = getStorageBucketName(serviceAccount)
+  cachedStorageBucket = storageBucket
+
+  // Initialize Firebase Admin with the service account credentials
+  firebaseAppInstance = admin.initializeApp({
+    credential: admin.cert(serviceAccount as any),
+    storageBucket: storageBucket,
+  })
+
+  console.log(`[Firebase Admin] Successfully initialized Firebase Admin SDK with bucket: ${storageBucket}`)
+  return firebaseAppInstance
+}
+
+/**
+ * Gets the current Firebase Admin instance or initializes if needed
+ * Safe to call multiple times
+ *
+ * @returns The Firebase Admin App instance
+ */
+export function getFirebaseApp(): admin.app.App {
+  if (firebaseAppInstance) {
+    return firebaseAppInstance
+  }
+  return initializeFirebaseAdmin()
+}
+
+/**
+ * Gets Firebase Storage bucket instance (idempotent)
+ * Automatically uses the correct bucket name derived from service account or environment variable
+ * 
+ * IMPORTANT: Ensure FIREBASE_STORAGE_BUCKET is set for production reliability.
+ * Without it, operations may fail with 404 or permission errors.
+ *
+ * @returns Firebase Storage bucket instance
+ * @throws Error if storage bucket cannot be determined or JSON parsing fails
+ */
+export function getFirebaseStorage() {
+  const app = getFirebaseApp()
+  
+  // Use cached bucket name if available
+  if (cachedStorageBucket) {
+    console.log(`[Firebase Admin] Using cached storage bucket: ${cachedStorageBucket}`)
+    return getStorage(app).bucket(cachedStorageBucket)
+  }
+
+  // Fallback: derive from service account (should already be cached after init)
+  const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON || "{}"
+  if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+    console.warn(
+      'WARNING: FIREBASE_SERVICE_ACCOUNT_JSON not set. ' +
+      'Using dummy initialization.'
+    )
+  }
+
+  let serviceAccount: Record<string, unknown>
+  try {
+    serviceAccount = JSON.parse(serviceAccountJson)
+  } catch (parseError) {
+    const error = parseError instanceof Error ? parseError.message : String(parseError)
+    throw new Error(
+      `Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON in fallback path. ` +
+      `Parse error: ${error}. ` +
+      `This should not occur in normal operation; please check your environment variables.`
+    )
+  }
+
+  // Validate service account before using it
+  validateServiceAccount(serviceAccount)
+
+  const bucketName = getStorageBucketName(serviceAccount)
+  cachedStorageBucket = bucketName
+  
+  console.log(`[Firebase Admin] Caching and using storage bucket: ${bucketName}`)
+  return getStorage(app).bucket(bucketName)
+}

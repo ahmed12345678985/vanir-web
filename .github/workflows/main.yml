@@ -1,0 +1,44 @@
+name: Deploy React Vite to cPanel
+
+on:
+  push:
+    branches:
+      - main # تأكد إذا كان فرعك الرئيسي اسمه main أو master وتغيره هنا لو لزم الأمر
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./client # لتوجيه جميع الأوامر لتنفيذها داخل مجلد الفرونت إند
+
+    steps:
+      # 1. جلب الكود بالكامل
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. إعداد بيئة Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 3. تثبيت الحزم وبناء المشروع باستخدام الـ pnpm (حسب ملف .pnpmfile.mjs الظاهر بمشروعك)
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install Dependencies and Build
+        run: |
+          pnpm install --no-frozen-lockfile
+          pnpm run build
+
+      # 4. شحن مخرجات البناء من داخل مجلد client/dist إلى الـ cPanel
+      - name: FTP Deploy to cPanel
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./client/dist/ # مسار مجلد مخرجات Vite الدقيق
+          server-dir: /
