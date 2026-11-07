@@ -49,7 +49,7 @@ jobs:
           server: ${{ secrets.CPANEL_FTP_HOST }}
           username: ${{ secrets.CPANEL_FTP_USER }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          server-dir: ${{ secrets.CPANEL_TARGET_DIR || 'public_html/' }}
+          server-dir: ${{ secrets.CPANEL_TARGET_DIR || './' }}
           protocol: ftp
           port: 21
           dangerous-clean-slate: false
