@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/$USER/public_html
+    - /bin/cp -R dist/public/* $DEPLOYPATH
+    - /bin/cp -f index.mjs $DEPLOYPATH
+    - /bin/cp -f index.cjs $DEPLOYPATH
+    - /bin/cp -f package.json $DEPLOYPATH
+    - /bin/cp -f .htaccess $DEPLOYPATH

@@ -1,0 +1,55 @@
+name: Automated cPanel Deployment
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    name: Build & Auto-Deploy to cPanel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+          run_install: false
+
+      - name: ⚡ Install Dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: 🏗️ Build Production Bundles
+        run: |
+          pnpm exec vite build
+          pnpm exec esbuild server/_core/index.ts --platform=node --bundle --format=esm --packages=external --outfile=dist/index.mjs
+          pnpm exec esbuild server/_core/index.ts --platform=node --bundle --format=cjs --packages=external --outfile=dist/index.cjs
+          cp dist/index.mjs ./index.mjs
+          cp dist/index.cjs ./index.cjs
+          mkdir -p public
+          cp -r dist/public/* public/
+          cp -f .htaccess public/.htaccess 2>/dev/null || true
+
+      - name: 🚀 Deploy Modified Files to cPanel via FTP
+        if: ${{ env.CPANEL_FTP_HOST != '' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        env:
+          CPANEL_FTP_HOST: ${{ secrets.CPANEL_FTP_HOST }}
+        with:
+          server: ${{ secrets.CPANEL_FTP_HOST }}
+          username: ${{ secrets.CPANEL_FTP_USER }}
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          server-dir: ${{ secrets.CPANEL_TARGET_DIR || 'public_html/' }}
+          protocol: ftp
+          port: 21
+          dangerous-clean-slate: false
