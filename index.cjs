@@ -2014,10 +2014,14 @@ var bookingsRouter = router({
       throw error;
     }
   }),
-  /** Get booking by ID */
-  getById: publicProcedure.input(import_zod2.z.object({ id: import_zod2.z.number() })).query(async ({ input }) => {
+  /** Get booking by ID (authenticated owner or admin only; guests use getByCode) */
+  getById: protectedProcedure.input(import_zod2.z.object({ id: import_zod2.z.number() })).query(async ({ ctx, input }) => {
     try {
       const booking = await getBookingById(input.id);
+      if (!booking) return null;
+      if (ctx.user.role !== "admin" && booking.userId !== ctx.user.id) {
+        throw new Error("Unauthorized access to booking record");
+      }
       console.log(`[bookings.getById] retrieved booking: id=${input.id}`);
       return booking;
     } catch (error) {
@@ -3386,6 +3390,11 @@ var aiStudioRouter = router({
       stripePaymentIntentId: import_zod8.z.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
+    if (input.plan !== "free" && ctx.user.role !== "admin") {
+      if (!input.stripePaymentIntentId || !input.stripePaymentIntentId.startsWith("pi_")) {
+        throw new Error("Valid payment confirmation is required to upgrade subscription plan");
+      }
+    }
     const subscription = await updateAISubscription(ctx.user.id, input.plan, input.stripePaymentIntentId);
     return subscription;
   }),
@@ -3400,15 +3409,15 @@ var aiStudioRouter = router({
     }
     return credits;
   }),
-  /** Add credits to user account (admin/webhook only) */
-  addCredits: protectedProcedure.input(
+  /** Add credits to user account (admin only) */
+  addCredits: adminProcedure.input(
     import_zod8.z.object({
       userId: import_zod8.z.number().optional(),
-      amount: import_zod8.z.number().min(1),
+      amount: import_zod8.z.number().min(1).max(1e6),
       reason: import_zod8.z.enum(["purchase", "monthly_allowance", "bonus"]).optional()
     })
   ).mutation(async ({ ctx, input }) => {
-    const targetUserId = ctx.user.role === "admin" && input.userId ? input.userId : ctx.user.id;
+    const targetUserId = input.userId ? input.userId : ctx.user.id;
     return addAICredits(targetUserId, input.amount, input.reason || "bonus");
   }),
   /** Generate image with DALL-E 3, Nano Banana, or Cloudflare Sunburst models - Real API call */
@@ -5729,7 +5738,7 @@ var adminBlogRouter = router({
 // server/routers/serverMonitor.ts
 var import_os = __toESM(require("os"), 1);
 var serverMonitorRouter = router({
-  getStats: publicProcedure.query(() => {
+  getStats: adminProcedure.query(() => {
     return {
       uptime: process.uptime(),
       osUptime: import_os.default.uptime(),
@@ -5750,26 +5759,42 @@ var import_promises2 = __toESM(require("fs/promises"), 1);
 var import_fs2 = __toESM(require("fs"), 1);
 var import_path3 = __toESM(require("path"), 1);
 var PUBLIC_DIR = import_fs2.default.existsSync(import_path3.default.resolve(process.cwd(), "public")) ? import_path3.default.resolve(process.cwd(), "public") : import_path3.default.resolve(process.cwd(), "client", "public");
+var PROTECTED_FILES = /* @__PURE__ */ new Set([
+  "index.html",
+  ".htaccess",
+  "robots.txt",
+  "favicon.ico",
+  "manifest.json"
+]);
+function resolveSafePublicPath(relativeInput, allowRoot = false) {
+  const cleaned = relativeInput.replace(/\\/g, "/").replace(/^\/+/, "");
+  const resolved = import_path3.default.resolve(PUBLIC_DIR, cleaned);
+  if (allowRoot && resolved === PUBLIC_DIR) {
+    return resolved;
+  }
+  if (!resolved.startsWith(PUBLIC_DIR + import_path3.default.sep)) {
+    throw new Error("Invalid path: Access outside public directory is denied");
+  }
+  return resolved;
+}
 var fileManagerRouter = router({
-  listFiles: publicProcedure.input(import_zod17.z.object({ folder: import_zod17.z.string().optional() })).query(async ({ input }) => {
-    const requestedPath = input.folder ? input.folder.replace(/\.\./g, "") : "";
-    const targetFolder = import_path3.default.join(PUBLIC_DIR, requestedPath);
-    if (!targetFolder.startsWith(PUBLIC_DIR)) {
-      throw new Error("Invalid path");
-    }
+  listFiles: adminProcedure.input(import_zod17.z.object({ folder: import_zod17.z.string().optional() })).query(async ({ input }) => {
+    const targetFolder = resolveSafePublicPath(input.folder || "", true);
     try {
       const entries = await import_promises2.default.readdir(targetFolder, { withFileTypes: true });
-      const files = await Promise.all(entries.map(async (entry) => {
-        const fullPath = import_path3.default.join(targetFolder, entry.name);
-        const stats = await import_promises2.default.stat(fullPath).catch(() => null);
-        return {
-          name: entry.name,
-          isDirectory: entry.isDirectory(),
-          size: stats?.size || 0,
-          lastModified: stats?.mtime.toISOString() || (/* @__PURE__ */ new Date()).toISOString(),
-          path: import_path3.default.relative(PUBLIC_DIR, fullPath).replace(/\\/g, "/")
-        };
-      }));
+      const files = await Promise.all(
+        entries.filter((entry) => !entry.name.startsWith(".env") && entry.name !== ".htaccess").map(async (entry) => {
+          const fullPath = import_path3.default.join(targetFolder, entry.name);
+          const stats = await import_promises2.default.stat(fullPath).catch(() => null);
+          return {
+            name: entry.name,
+            isDirectory: entry.isDirectory(),
+            size: stats?.size || 0,
+            lastModified: stats?.mtime.toISOString() || (/* @__PURE__ */ new Date()).toISOString(),
+            path: import_path3.default.relative(PUBLIC_DIR, fullPath).replace(/\\/g, "/")
+          };
+        })
+      );
       return files.sort((a, b) => {
         if (a.isDirectory === b.isDirectory) return a.name.localeCompare(b.name);
         return a.isDirectory ? -1 : 1;
@@ -5779,15 +5804,22 @@ var fileManagerRouter = router({
       throw err;
     }
   }),
-  deleteFile: publicProcedure.input(import_zod17.z.object({ path: import_zod17.z.string() })).mutation(async ({ input }) => {
-    const safePath = input.path.replace(/\.\./g, "");
-    const targetFile = import_path3.default.join(PUBLIC_DIR, safePath);
-    if (!targetFile.startsWith(PUBLIC_DIR)) throw new Error("Invalid path");
+  deleteFile: adminProcedure.input(import_zod17.z.object({ path: import_zod17.z.string().min(1) })).mutation(async ({ input }) => {
+    const targetFile = resolveSafePublicPath(input.path, false);
+    const relPath = import_path3.default.relative(PUBLIC_DIR, targetFile).replace(/\\/g, "/");
+    const baseName = import_path3.default.basename(targetFile);
+    if (PROTECTED_FILES.has(baseName) || PROTECTED_FILES.has(relPath) || relPath.startsWith("assets/") || relPath.startsWith(".well-known/")) {
+      throw new Error("Protected system file cannot be deleted");
+    }
     try {
+      const stat = await import_promises2.default.stat(targetFile);
+      if (stat.isDirectory()) {
+        throw new Error("Cannot delete directories");
+      }
       await import_promises2.default.unlink(targetFile);
       return { success: true };
     } catch (e) {
-      throw new Error("Cannot delete file");
+      throw new Error(e?.message || "Cannot delete file");
     }
   })
 });

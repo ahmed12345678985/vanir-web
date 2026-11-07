@@ -100,6 +100,57 @@ const DEFAULT_WIDTH = 260;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 400;
 
+class AdminSectionErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error("[AdminSectionError]", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 bg-[var(--theme-surface)]/80 border border-red-500/20 rounded-2xl max-w-2xl mx-auto my-8 text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+            <AlertCircle size={28} />
+          </div>
+          <h3 className="text-xl font-bold text-white font-[var(--font-display)]">
+            حدث خطأ أثناء عرض هذا القسم
+          </h3>
+          <p className="text-xs text-white/60 font-mono bg-black/40 p-3 rounded-lg max-w-full overflow-x-auto text-left">
+            {this.state.error?.message || "Unknown error"}
+          </p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => this.setState({ hasError: false, error: null })}
+              className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-surface)] rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              إعادة المحاولة
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-white/10 text-white rounded-lg text-sm hover:bg-white/15 transition-colors"
+            >
+              تحديث الصفحة
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function AdminLayout({
   children,
 }: {
@@ -203,57 +254,6 @@ export default function AdminLayout({
       </div>
     );
   }
-
-class AdminSectionErrorBoundary extends React.Component<
-  { children: React.ReactNode },
-  { hasError: boolean; error: Error | null }
-> {
-  constructor(props: { children: React.ReactNode }) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
-
-  static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("[AdminSectionError]", error, info);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center p-8 bg-[var(--theme-surface)]/80 border border-red-500/20 rounded-2xl max-w-2xl mx-auto my-8 text-center space-y-4">
-          <div className="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
-            <AlertCircle size={28} />
-          </div>
-          <h3 className="text-xl font-bold text-white font-[var(--font-display)]">
-            حدث خطأ أثناء عرض هذا القسم
-          </h3>
-          <p className="text-xs text-white/60 font-mono bg-black/40 p-3 rounded-lg max-w-full overflow-x-auto text-left">
-            {this.state.error?.message || "Unknown error"}
-          </p>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => this.setState({ hasError: false, error: null })}
-              className="px-4 py-2 bg-[var(--theme-primary)] text-[var(--theme-surface)] rounded-lg text-sm font-semibold hover:opacity-90 transition-opacity"
-            >
-              إعادة المحاولة
-            </button>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-white/10 text-white rounded-lg text-sm hover:bg-white/15 transition-colors"
-            >
-              تحديث الصفحة
-            </button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
   return (
     <div className="notranslate" translate="no">

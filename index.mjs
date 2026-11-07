@@ -1994,10 +1994,14 @@ var bookingsRouter = router({
       throw error;
     }
   }),
-  /** Get booking by ID */
-  getById: publicProcedure.input(z2.object({ id: z2.number() })).query(async ({ input }) => {
+  /** Get booking by ID (authenticated owner or admin only; guests use getByCode) */
+  getById: protectedProcedure.input(z2.object({ id: z2.number() })).query(async ({ ctx, input }) => {
     try {
       const booking = await getBookingById(input.id);
+      if (!booking) return null;
+      if (ctx.user.role !== "admin" && booking.userId !== ctx.user.id) {
+        throw new Error("Unauthorized access to booking record");
+      }
       console.log(`[bookings.getById] retrieved booking: id=${input.id}`);
       return booking;
     } catch (error) {
@@ -3366,6 +3370,11 @@ var aiStudioRouter = router({
       stripePaymentIntentId: z8.string().optional()
     })
   ).mutation(async ({ ctx, input }) => {
+    if (input.plan !== "free" && ctx.user.role !== "admin") {
+      if (!input.stripePaymentIntentId || !input.stripePaymentIntentId.startsWith("pi_")) {
+        throw new Error("Valid payment confirmation is required to upgrade subscription plan");
+      }
+    }
     const subscription = await updateAISubscription(ctx.user.id, input.plan, input.stripePaymentIntentId);
     return subscription;
   }),
@@ -3380,15 +3389,15 @@ var aiStudioRouter = router({
     }
     return credits;
   }),
-  /** Add credits to user account (admin/webhook only) */
-  addCredits: protectedProcedure.input(
+  /** Add credits to user account (admin only) */
+  addCredits: adminProcedure.input(
     z8.object({
       userId: z8.number().optional(),
-      amount: z8.number().min(1),
+      amount: z8.number().min(1).max(1e6),
       reason: z8.enum(["purchase", "monthly_allowance", "bonus"]).optional()
     })
   ).mutation(async ({ ctx, input }) => {
-    const targetUserId = ctx.user.role === "admin" && input.userId ? input.userId : ctx.user.id;
+    const targetUserId = input.userId ? input.userId : ctx.user.id;
     return addAICredits(targetUserId, input.amount, input.reason || "bonus");
   }),
   /** Generate image with DALL-E 3, Nano Banana, or Cloudflare Sunburst models - Real API call */
@@ -5709,7 +5718,7 @@ var adminBlogRouter = router({
 // server/routers/serverMonitor.ts
 import os from "os";
 var serverMonitorRouter = router({
-  getStats: publicProcedure.query(() => {
+  getStats: adminProcedure.query(() => {
     return {
       uptime: process.uptime(),
       osUptime: os.uptime(),
@@ -5730,26 +5739,42 @@ import fs4 from "fs/promises";
 import fsSync from "fs";
 import path4 from "path";
 var PUBLIC_DIR = fsSync.existsSync(path4.resolve(process.cwd(), "public")) ? path4.resolve(process.cwd(), "public") : path4.resolve(process.cwd(), "client", "public");
+var PROTECTED_FILES = /* @__PURE__ */ new Set([
+  "index.html",
+  ".htaccess",
+  "robots.txt",
+  "favicon.ico",
+  "manifest.json"
+]);
+function resolveSafePublicPath(relativeInput, allowRoot = false) {
+  const cleaned = relativeInput.replace(/\\/g, "/").replace(/^\/+/, "");
+  const resolved = path4.resolve(PUBLIC_DIR, cleaned);
+  if (allowRoot && resolved === PUBLIC_DIR) {
+    return resolved;
+  }
+  if (!resolved.startsWith(PUBLIC_DIR + path4.sep)) {
+    throw new Error("Invalid path: Access outside public directory is denied");
+  }
+  return resolved;
+}
 var fileManagerRouter = router({
-  listFiles: publicProcedure.input(z17.object({ folder: z17.string().optional() })).query(async ({ input }) => {
-    const requestedPath = input.folder ? input.folder.replace(/\.\./g, "") : "";
-    const targetFolder = path4.join(PUBLIC_DIR, requestedPath);
-    if (!targetFolder.startsWith(PUBLIC_DIR)) {
-      throw new Error("Invalid path");
-    }
+  listFiles: adminProcedure.input(z17.object({ folder: z17.string().optional() })).query(async ({ input }) => {
+    const targetFolder = resolveSafePublicPath(input.folder || "", true);
     try {
       const entries = await fs4.readdir(targetFolder, { withFileTypes: true });
-      const files = await Promise.all(entries.map(async (entry) => {
-        const fullPath = path4.join(targetFolder, entry.name);
-        const stats = await fs4.stat(fullPath).catch(() => null);
-        return {
-          name: entry.name,
-          isDirectory: entry.isDirectory(),
-          size: stats?.size || 0,
-          lastModified: stats?.mtime.toISOString() || (/* @__PURE__ */ new Date()).toISOString(),
-          path: path4.relative(PUBLIC_DIR, fullPath).replace(/\\/g, "/")
-        };
-      }));
+      const files = await Promise.all(
+        entries.filter((entry) => !entry.name.startsWith(".env") && entry.name !== ".htaccess").map(async (entry) => {
+          const fullPath = path4.join(targetFolder, entry.name);
+          const stats = await fs4.stat(fullPath).catch(() => null);
+          return {
+            name: entry.name,
+            isDirectory: entry.isDirectory(),
+            size: stats?.size || 0,
+            lastModified: stats?.mtime.toISOString() || (/* @__PURE__ */ new Date()).toISOString(),
+            path: path4.relative(PUBLIC_DIR, fullPath).replace(/\\/g, "/")
+          };
+        })
+      );
       return files.sort((a, b) => {
         if (a.isDirectory === b.isDirectory) return a.name.localeCompare(b.name);
         return a.isDirectory ? -1 : 1;
@@ -5759,15 +5784,22 @@ var fileManagerRouter = router({
       throw err;
     }
   }),
-  deleteFile: publicProcedure.input(z17.object({ path: z17.string() })).mutation(async ({ input }) => {
-    const safePath = input.path.replace(/\.\./g, "");
-    const targetFile = path4.join(PUBLIC_DIR, safePath);
-    if (!targetFile.startsWith(PUBLIC_DIR)) throw new Error("Invalid path");
+  deleteFile: adminProcedure.input(z17.object({ path: z17.string().min(1) })).mutation(async ({ input }) => {
+    const targetFile = resolveSafePublicPath(input.path, false);
+    const relPath = path4.relative(PUBLIC_DIR, targetFile).replace(/\\/g, "/");
+    const baseName = path4.basename(targetFile);
+    if (PROTECTED_FILES.has(baseName) || PROTECTED_FILES.has(relPath) || relPath.startsWith("assets/") || relPath.startsWith(".well-known/")) {
+      throw new Error("Protected system file cannot be deleted");
+    }
     try {
+      const stat = await fs4.stat(targetFile);
+      if (stat.isDirectory()) {
+        throw new Error("Cannot delete directories");
+      }
       await fs4.unlink(targetFile);
       return { success: true };
     } catch (e) {
-      throw new Error("Cannot delete file");
+      throw new Error(e?.message || "Cannot delete file");
     }
   })
 });
