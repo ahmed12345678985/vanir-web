@@ -430,12 +430,20 @@ export async function sendMobilePushNotification(
   payload: Omit<PushNotificationPayload, 'id' | 'sentAt' | 'status'>
 ): Promise<string> {
   const notifRef = doc(collection(db, 'mobile_push_notifications'));
-  await setDoc(notifRef, {
-    ...payload,
+  const cleanData: Record<string, any> = {
     id: notifRef.id,
+    title: payload.title,
+    body: payload.body,
+    targetScreen: payload.targetScreen || 'HomeScreen',
     sentAt: serverTimestamp(),
     status: 'sent',
-  });
+  };
+
+  if (payload.imageUrl && typeof payload.imageUrl === 'string' && payload.imageUrl.trim() !== '') {
+    cleanData.imageUrl = payload.imageUrl.trim();
+  }
+
+  await setDoc(notifRef, cleanData);
   return notifRef.id;
 }
 
