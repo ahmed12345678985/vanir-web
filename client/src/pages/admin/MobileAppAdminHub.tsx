@@ -79,6 +79,24 @@ export default function MobileAppAdminHub() {
   const [pushTarget, setPushTarget] = useState("HomeScreen");
   const [pushHistory, setPushHistory] = useState<PushNotificationPayload[]>([]);
   const [sendingPush, setSendingPush] = useState(false);
+  const [uploadingPushImage, setUploadingPushImage] = useState(false);
+  const pushFileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handlePushImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPushImage(true);
+    try {
+      const url = await uploadMobileImage(file, "push_banners");
+      setPushImageUrl(url);
+      showToast("تم رفع صورة الإشعار من جهازك بنجاح!");
+    } catch (err: any) {
+      alert("خطأ أثناء رفع صورة الإشعار: " + err.message);
+    } finally {
+      setUploadingPushImage(false);
+      if (pushFileInputRef.current) pushFileInputRef.current.value = "";
+    }
+  }
 
   useEffect(() => {
     loadAllData();
@@ -810,14 +828,35 @@ export default function MobileAppAdminHub() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-[#8892B0] font-medium block mb-1.5">
-                    رابط صورة البانر في الإشعار (اختياري):
+                    صورة البانر للإشعار (من جهازك مباشرة):
                   </label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => pushFileInputRef.current?.click()}
+                      disabled={uploadingPushImage}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.08)] hover:bg-[rgba(201,168,76,0.18)] text-xs font-bold text-[#ecd58e] transition-all"
+                    >
+                      <UploadCloud className="w-4 h-4 text-[#c9a84c]" />
+                      <span>{uploadingPushImage ? "جاري رفع الصورة..." : "اختر صورة من جهازك"}</span>
+                    </button>
+                    {pushImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setPushImageUrl("")}
+                        className="px-3 py-2.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs hover:bg-red-500/20"
+                        title="حذف الصورة"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
                   <input
-                    type="url"
-                    value={pushImageUrl}
-                    onChange={(e) => setPushImageUrl(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
-                    className="w-full rounded-xl bg-[#181828] border border-white/[0.1] px-4 py-2.5 text-xs text-white focus:border-[#c9a84c] focus:outline-none"
+                    type="file"
+                    ref={pushFileInputRef}
+                    onChange={handlePushImageUpload}
+                    accept="image/*"
+                    className="hidden"
                   />
                 </div>
 
@@ -854,10 +893,17 @@ export default function MobileAppAdminHub() {
               <h3 className="text-xs font-bold text-[#8892B0] mb-4">معاينة الإشعار على شاشة قفل الهاتف:</h3>
               <div className="w-64 rounded-3xl border border-white/[0.15] bg-[#000000]/90 p-4 shadow-[0_15px_35px_rgba(0,0,0,0.8)] backdrop-blur-md">
                 <div className="flex items-center gap-2 mb-2">
-                  <div className="w-4 h-4 rounded-md bg-[#c9a84c] flex items-center justify-center text-[10px] text-black font-bold">
-                    V
+                  <div className="w-5 h-5 rounded-md overflow-hidden bg-black flex items-center justify-center border border-[#c9a84c]/40 shrink-0">
+                    <img
+                      src="/logo-vanir.png"
+                      alt="Vanir Logo"
+                      className="w-full h-full object-contain p-0.5"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = 'none';
+                      }}
+                    />
                   </div>
-                  <span className="text-[11px] font-bold text-white">VANIR TRAVEL</span>
+                  <span className="text-[11px] font-bold tracking-wider text-[#ecd58e]">VANIR</span>
                   <span className="text-[9px] text-white/50 ml-auto">الآن</span>
                 </div>
                 <div className="text-xs font-bold text-white truncate">
@@ -867,7 +913,7 @@ export default function MobileAppAdminHub() {
                   {pushBody || "هنا يظهر نص الإشعار الفاخر على هاتف العميل خارج التطبيق..."}
                 </div>
                 {pushImageUrl && (
-                  <div className="mt-2 h-20 w-full rounded-lg overflow-hidden bg-white/5">
+                  <div className="mt-2 h-24 w-full rounded-lg overflow-hidden bg-white/5 border border-white/10">
                     <img src={pushImageUrl} alt="banner" className="w-full h-full object-cover" />
                   </div>
                 )}
