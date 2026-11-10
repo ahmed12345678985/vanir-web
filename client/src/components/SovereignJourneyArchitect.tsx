@@ -79,7 +79,7 @@ const DESTINATIONS: DestinationSanctuary[] = [
     name: "Cairo, Luxor & Aswan Sovereign Odyssey",
     region: "Egypt — Nile & Antiquities",
     tagline: "Presidential Nile suites, private after-hours Giza Pyramid entry & private Dahabiya charter",
-    image: "/images/hero-egyptian.jpg",
+    image: "/The_Nile_River_at_Cairo.jpg",
     badge: "ROYAL HERITAGE",
     dailyGroundRatePerGuestEur: 1150,
     flightMultiplier: 1.15,

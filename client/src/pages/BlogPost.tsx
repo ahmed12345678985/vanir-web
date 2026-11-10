@@ -2,41 +2,49 @@
  * Design: Art Deco Luxe - Black & Gold
  * Blog Post Page: Individual article with full SEO and Schema markup
  */
+import { useState, useEffect } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
 import { Calendar, Clock, Eye, ArrowLeft, User, Tag, Share2 } from "lucide-react";
-import { trpc } from "@/lib/trpc";
 import { Streamdown } from "streamdown";
 import PageMeta from "@/components/PageMeta";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { toast } from "sonner";
 import { PRIORITY_SEO_BLOG_POSTS } from "@shared/seo/priorityBlogPosts";
+import { getBlogPostBySlug, type BlogPostItem } from "@/lib/blogApi";
 
 export default function BlogPost() {
   const params = useParams<{ slug: string }>();
   const slug = params.slug || "";
 
   const staticPriorityPost = PRIORITY_SEO_BLOG_POSTS.find((p) => p.slug === slug);
+  const [livePost, setLivePost] = useState<BlogPostItem | null>(staticPriorityPost as any || null);
+  const [isLoading, setIsLoading] = useState(!staticPriorityPost);
 
-  const { data: apiPost, isLoading, error } = trpc.blog.getBySlug.useQuery(
-    { slug },
-    { enabled: !!slug && !staticPriorityPost }
-  );
+  useEffect(() => {
+    let mounted = true;
+    if (slug) {
+      getBlogPostBySlug(slug).then((res) => {
+        if (mounted && res) {
+          setLivePost(res);
+          setIsLoading(false);
+        }
+      }).catch(() => {
+        if (mounted) setIsLoading(false);
+      });
+    }
+    return () => {
+      mounted = false;
+    };
+  }, [slug]);
 
-  const post: any = staticPriorityPost || apiPost;
+  const post: any = livePost || staticPriorityPost;
 
   // Related posts (same category, excluding current)
-  const { data: relatedPosts } = trpc.blog.list.useQuery(
-    { limit: 3, category: post?.category || undefined },
-    { enabled: !!post?.category }
-  );
-
-  const fallbackRelated = PRIORITY_SEO_BLOG_POSTS.filter((p) => p.slug !== slug).slice(0, 3);
-  const filteredRelated =
-    relatedPosts && relatedPosts.length > 0
-      ? relatedPosts.filter((p: any) => p.slug !== slug).slice(0, 3)
-      : fallbackRelated;
+  const filteredRelated = PRIORITY_SEO_BLOG_POSTS
+    .filter((p) => p.slug !== slug && (!post?.category || p.category === post?.category))
+    .slice(0, 3);
 
   const handleShare = () => {
     if (navigator.share) {
@@ -58,7 +66,7 @@ export default function BlogPost() {
         description: post.metaDescription || post.excerpt,
         image: post.coverImageUrl?.startsWith("http")
           ? post.coverImageUrl
-          : `https://vanirgroup.com${post.coverImageUrl || "/images/hero-egyptian.jpg"}`,
+          : `https://vanirgroup.com${post.coverImageUrl || "/The_Nile_River_at_Cairo.jpg"}`,
         datePublished: post.publishedAt
           ? new Date(post.publishedAt).toISOString()
           : undefined,

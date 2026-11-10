@@ -173,7 +173,7 @@ export default function HeroSection() {
 
   const activeSlideUrl = (isCustomMobile && heroData?.mobileMediaUrl)
     ? heroData.mobileMediaUrl
-    : (slides[currentIndex] || slides[0] || "/images/hero-egyptian.jpg");
+    : (slides[currentIndex] || slides[0] || "/The_Nile_River_at_Cairo.jpg");
   const isVideo = isVideoUrl(activeSlideUrl);
 
   return (

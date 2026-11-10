@@ -93,11 +93,28 @@ const trpcClient = trpc.createClient({
           headers.set("Authorization", `Bearer ${token}`);
         }
 
-        return globalThis.fetch(input, {
+        const res = await globalThis.fetch(input, {
           ...(init ?? {}),
           headers,
           credentials: "include",
         });
+
+        // إذا كان الموقع منشوراً كصفحة ساكنة (Cloudflare Pages) والـ API غير متاح
+        // نعيد استجابة JSON فارغة بدلاً من رمي خطأ Unexpected end of JSON input
+        if (!res.ok || res.status === 404 || res.status === 405) {
+          const contentType = res.headers.get("content-type") || "";
+          if (!contentType.includes("application/json")) {
+            return new Response(
+              JSON.stringify([{ result: { data: { json: null } } }]),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            );
+          }
+        }
+
+        return res;
       },
     }),
   ],

@@ -70,7 +70,7 @@ const DEFAULT_SECTIONS: SEOSection[] = [
 
 const DEFAULT_IMAGES: SEOImage[] = [
   {
-    src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+    src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
     alt: "Vanir Group luxury travel concierge service and private pyramids tour in Egypt",
     caption: "Exclusive after-hours private access to the Great Pyramids of Giza curated by Vanir Group."
   },
@@ -117,7 +117,7 @@ export const vanirSeoMatrix: SEOMatrix = {
     ctaHref: "/contact",
     images: [
       {
-        src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+        src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
         alt: "Vanir Group luxury travel concierge service private jet and pyramids tour",
         caption: "Bespoke luxury travel concierge service and private aviation curated by Vanir Group."
       },
@@ -254,7 +254,7 @@ export const vanirSeoMatrix: SEOMatrix = {
         caption: "Vanir Group curating bespoke heritage and aviation journeys since 2010."
       },
       {
-        src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+        src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
         alt: "Private luxury Egypt tours organized by Vanir Travel Group",
         caption: "Exclusive private access to Egypt's most iconic ancient monuments."
       }
@@ -380,7 +380,7 @@ export const vanirSeoMatrix: SEOMatrix = {
         caption: "Direct tarmac-side chauffeur transfer from private FBO terminal to aircraft steps."
       },
       {
-        src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+        src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
         alt: "Private jet charter to Egypt pyramids and Red Sea resorts",
         caption: "Seamless private aviation connections from Germany and Europe to Egypt."
       }
@@ -678,7 +678,7 @@ export const vanirSeoMatrix: SEOMatrix = {
     ctaHref: "/booking",
     images: [
       {
-        src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+        src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
         alt: "Luxury Egypt tours private after-hours access to the Great Pyramids of Giza",
         caption: "Private after-hours access to the Great Pyramids of Giza and Sphinx on a Vanir Group luxury Egypt tour."
       },

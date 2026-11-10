@@ -31,7 +31,7 @@ export const PRIORITY_SEO_BLOG_POSTS: PriorityBlogPost[] = [
       "Discover what a luxury travel concierge does, how luxury travel concierge services work, what is included in UHNW packages, and why executives rely on Vanir Group.",
     metaKeywords:
       "what does a luxury travel concierge do, luxury travel concierge service, how luxury travel concierge works, UHNW travel concierge, celebrity travel concierge, Vanir Group",
-    coverImageUrl: "/images/hero-egyptian.jpg",
+    coverImageUrl: "/The_Nile_River_at_Cairo.jpg",
     category: "Destinations",
     tags: [
       "Luxury Travel Concierge",

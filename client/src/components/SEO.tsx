@@ -14,7 +14,7 @@ interface SEOProps {
 
 const SITE_NAME = "VANIR GROUP";
 const BASE_URL = "https://vanirgroup.com";
-const DEFAULT_OG_IMAGE = "/images/hero-egyptian.jpg";
+const DEFAULT_OG_IMAGE = "/The_Nile_River_at_Cairo.jpg";
 
 export default function SEO({
   title,

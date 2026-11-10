@@ -2,7 +2,7 @@
  * Design: Art Deco Luxe - Black & Gold
  * Blog List Page: SEO-optimized travel articles
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import { Calendar, Clock, Eye, ArrowRight, Search, Tag } from "lucide-react";
@@ -11,25 +11,34 @@ import PageMeta from "@/components/PageMeta";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WatermarkImage from "@/components/WatermarkImage";
-import { PRIORITY_SEO_BLOG_POSTS } from "@shared/seo/priorityBlogPosts";
+import { listAllBlogPosts, type BlogPostItem } from "@/lib/blogApi";
 
 const CATEGORIES = ["All", "Destinations", "Experiences", "Travel Tips", "Culture"];
 
 export default function Blog() {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [postsList, setPostsList] = useState<BlogPostItem[]>(PRIORITY_SEO_BLOG_POSTS as any);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const { data: apiPosts, isLoading } = trpc.blog.list.useQuery(
-    selectedCategory === "All" ? { limit: 25 } : { limit: 25, category: selectedCategory }
-  );
+  useEffect(() => {
+    let mounted = true;
+    listAllBlogPosts()
+      .then((data) => {
+        if (mounted && data && data.length > 0) {
+          setPostsList(data);
+        }
+      })
+      .catch((err) => console.warn("Blog list fetch error:", err));
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const posts = (() => {
-    const base = apiPosts && apiPosts.length > 0 ? apiPosts : PRIORITY_SEO_BLOG_POSTS;
-    const seen = new Set(base.map((p: any) => p.slug));
-    const extras = PRIORITY_SEO_BLOG_POSTS.filter((p) => !seen.has(p.slug));
-    const merged = [...extras, ...base];
-    if (selectedCategory === "All") return merged;
-    return merged.filter((p: any) =>
+    const base = postsList && postsList.length > 0 ? postsList : PRIORITY_SEO_BLOG_POSTS;
+    if (selectedCategory === "All") return base;
+    return base.filter((p: any) =>
       String(p.category || "").toLowerCase().includes(selectedCategory.toLowerCase())
     );
   })();

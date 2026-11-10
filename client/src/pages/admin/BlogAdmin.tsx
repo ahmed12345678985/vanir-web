@@ -1,25 +1,33 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit2, Trash2, Search, Eye, Archive, Upload, FileText, Sparkles, Layers, Download, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
-import { trpc } from "@/lib/trpc";
-import { formatDate } from "@/lib/formatDate";
+import { Plus, Edit2, Trash2, Search, Eye, Upload, FileText, Sparkles, Layers, Download, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import ImageUploadField from "@/components/admin/ImageUploadField";
+import { ImageUploadField } from "@/components/admin/ImageUploadField";
+import {
+  listAllBlogPosts,
+  saveBlogPost,
+  deleteBlogPost,
+  bulkImportBlogPosts,
+  generateSlug,
+  type BlogPostItem
+} from "@/lib/blogApi";
 
 export default function BlogAdmin() {
   const [search, setSearch] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingId, setEditingId] = useState<string | number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [bulkInput, setBulkInput] = useState("");
   const [bulkMode, setBulkMode] = useState<"json" | "csv">("json");
-  const [isParsingBulk, setIsParsingBulk] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [articles, setArticles] = useState<BlogPostItem[]>([]);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -33,12 +41,22 @@ export default function BlogAdmin() {
     status: "published" as "published" | "draft" | "archived",
   });
 
-  const utils = trpc.useUtils ? trpc.useUtils() : (trpc as any).useContext?.();
+  const loadArticles = async () => {
+    setIsLoading(true);
+    try {
+      const list = await listAllBlogPosts();
+      setArticles(list);
+    } catch (err: any) {
+      console.error("Error loading articles:", err);
+      toast.error("فشل تحميل المقالات");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  const { data: articles, isLoading, refetch } = trpc.adminBlog.list.useQuery({
-    search,
-    limit: 100,
-  });
+  useEffect(() => {
+    loadArticles();
+  }, []);
 
   const resetForm = () => {
     setFormData({
@@ -55,84 +73,16 @@ export default function BlogAdmin() {
     setEditingId(null);
   };
 
-  const createMutation = trpc.adminBlog.create.useMutation({
-    onSuccess: () => {
-      toast.success("تم إنشاء المقالة بنجاح!");
-      refetch();
-      setIsOpen(false);
-      resetForm();
-    },
-    onError: (err) => {
-      toast.error(`خطأ في إنشاء المقالة: ${err.message}`);
-    },
-  });
-
-  const updateMutation = trpc.adminBlog.update.useMutation({
-    onSuccess: () => {
-      toast.success("تم تحديث المقالة بنجاح!");
-      refetch();
-      setIsOpen(false);
-      resetForm();
-    },
-    onError: (err) => {
-      toast.error(`خطأ في تحديث المقالة: ${err.message}`);
-    },
-  });
-
-  const deleteMutation = trpc.adminBlog.delete.useMutation({
-    onSuccess: () => {
-      toast.success("تم حذف المقالة بنجاح");
-      refetch();
-    },
-    onError: (err) => {
-      toast.error(`خطأ في حذف المقالة: ${err.message}`);
-    },
-  });
-
-  const publishMutation = trpc.adminBlog.publish.useMutation({
-    onSuccess: () => {
-      toast.success("تم نشر المقالة");
-      refetch();
-    },
-  });
-
-  const archiveMutation = trpc.adminBlog.archive.useMutation({
-    onSuccess: () => {
-      toast.success("تم أرشفة المقالة");
-      refetch();
-    },
-  });
-
-  const bulkCreateMutation = (trpc.adminBlog as any).createBulk?.useMutation({
-    onSuccess: (res: any) => {
-      toast.success(`تم استيراد وإنشاء ${res?.count || 0} مقالة بنجاح دفعة واحدة!`);
-      refetch();
-      setIsBulkOpen(false);
-      setBulkInput("");
-    },
-    onError: (err: any) => {
-      toast.error(`فشل الاستيراد الجماعي: ${err.message}`);
-    },
-  });
-
-  const generateSlug = (title: string) => {
-    return title
-      .toLowerCase()
-      .replace(/[^\w\s\u0621-\u064A-]/g, "")
-      .replace(/\s+/g, "-")
-      .replace(/-+/g, "-");
-  };
-
-  const handleOpenEdit = (article: any) => {
+  const handleOpenEdit = (article: BlogPostItem) => {
     setEditingId(article.id);
     setFormData({
       title: article.title || "",
       slug: article.slug || "",
       content: article.content || "",
       excerpt: article.excerpt || "",
-      imageUrl: article.coverImageUrl || article.imageUrl || "",
+      imageUrl: article.coverImageUrl || "",
       category: article.category || "Luxury Travel",
-      author: article.authorName || article.author || "Ahmed Roshdi",
+      author: article.authorName || "Ahmed Roshdi",
       tags: Array.isArray(article.tags) ? article.tags.join(", ") : (article.tags || ""),
       status: article.status || "published",
     });
@@ -140,12 +90,12 @@ export default function BlogAdmin() {
   };
 
   const handleSubmit = async () => {
-    if (!formData.title || !formData.slug) {
-      toast.error("العنوان والـ slug مطلوبان");
+    if (!formData.title || !formData.title.trim()) {
+      toast.error("عنوان المقالة مطلوب");
       return;
     }
 
-    if (!formData.content) {
+    if (!formData.content || !formData.content.trim()) {
       toast.error("محتوى المقالة مطلوب");
       return;
     }
@@ -155,32 +105,45 @@ export default function BlogAdmin() {
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0);
 
-    const excerpt = formData.excerpt || formData.content.slice(0, 160) + "...";
+    const excerpt = formData.excerpt?.trim() || formData.content.slice(0, 160) + "...";
+    const slug = formData.slug?.trim() || generateSlug(formData.title);
 
-    if (editingId) {
-      await updateMutation.mutateAsync({
+    setIsSaving(true);
+    try {
+      await saveBlogPost({
         id: editingId,
         title: formData.title,
-        slug: formData.slug,
+        slug,
         excerpt,
         content: formData.content,
-        coverImageUrl: formData.imageUrl,
+        coverImageUrl: formData.imageUrl || "/The_Nile_River_at_Cairo.jpg",
         category: formData.category,
         authorName: formData.author,
         tags,
         status: formData.status,
       });
-    } else {
-      await createMutation.mutateAsync({
-        title: formData.title,
-        slug: formData.slug,
-        excerpt,
-        content: formData.content,
-        coverImageUrl: formData.imageUrl,
-        category: formData.category,
-        authorName: formData.author,
-        tags,
-      });
+
+      toast.success(editingId ? "تم تحديث المقالة بنجاح!" : "تم إنشاء وحفظ المقالة بنجاح في الموقع!");
+      await loadArticles();
+      setIsOpen(false);
+      resetForm();
+    } catch (err: any) {
+      console.error("Save blog post error:", err);
+      toast.error(`خطأ في حفظ المقالة: ${err.message || "فشلت العملية"}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (article: BlogPostItem) => {
+    if (!confirm(`هل أنت متأكد من حذف المقالة "${article.title}"؟`)) return;
+    try {
+      await deleteBlogPost(article.id);
+      toast.success("تم حذف المقالة بنجاح");
+      await loadArticles();
+    } catch (err: any) {
+      console.error("Delete blog post error:", err);
+      toast.error(`خطأ في حذف المقالة: ${err.message || "فشلت العملية"}`);
     }
   };
 
@@ -193,7 +156,7 @@ export default function BlogAdmin() {
       content: "محتوى المقال الكامل هنا بالتفصيل عن تجربة الطيران الخاص وحجوزات كبار الشخصيات...",
       category: "Private Jet",
       authorName: "Ahmed Roshdi",
-      coverImageUrl: "/images/hero-egyptian.jpg",
+      coverImageUrl: "/The_Nile_River_at_Cairo.jpg",
       tags: ["Private Jet", "Cairo", "Luxury"],
       status: "published"
     },
@@ -204,7 +167,7 @@ export default function BlogAdmin() {
       content: "تفاصيل الجزر الخاصة والمنتجعات الفاخرة التي توفر أقصى درجات الراحة والهدوء...",
       category: "Luxury Travel",
       authorName: "Ahmed Roshdi",
-      coverImageUrl: "/images/final_cairo_post.png",
+      coverImageUrl: "/The_Nile_River_at_Cairo.jpg",
       tags: ["Private Island", "Maldives", "Luxury"],
       status: "published"
     }
@@ -220,12 +183,13 @@ export default function BlogAdmin() {
     downloadAnchor.remove();
   };
 
-  const handleBulkSubmit = () => {
+  const handleBulkSubmit = async () => {
     if (!bulkInput.trim()) {
       toast.error("يرجى إدخال المقالات أو رفع الملف");
       return;
     }
 
+    setIsImporting(true);
     try {
       let parsedArticles: any[] = [];
       if (bulkMode === "json") {
@@ -242,9 +206,9 @@ export default function BlogAdmin() {
         const lines = bulkInput.trim().split("\n");
         if (lines.length <= 1) {
           toast.error("ملف CSV يجب أن يحتوي على صف العناوين وبيانات المقالات");
+          setIsImporting(false);
           return;
         }
-        const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
         for (let i = 1; i < lines.length; i++) {
           const cols = lines[i].split(",").map(c => c.trim().replace(/^["']|["']$/g, ""));
           if (cols.length >= 2 && cols[0]) {
@@ -257,7 +221,7 @@ export default function BlogAdmin() {
               excerpt: cols[2] || content.slice(0, 140),
               category: cols[3] || "Luxury Travel",
               authorName: cols[4] || "Ahmed Roshdi",
-              coverImageUrl: cols[5] || "/images/hero-egyptian.jpg",
+              coverImageUrl: cols[5] || "/The_Nile_River_at_Cairo.jpg",
               status: "published"
             });
           }
@@ -266,6 +230,7 @@ export default function BlogAdmin() {
 
       if (parsedArticles.length === 0) {
         toast.error("لم يتم العثور على أي مقالات صالحة في البيانات المدخلة");
+        setIsImporting(false);
         return;
       }
 
@@ -277,36 +242,21 @@ export default function BlogAdmin() {
         content: String(art.content || art.body || "محتوى المقالة"),
         category: String(art.category || "Luxury Travel"),
         authorName: String(art.authorName || art.author || "Ahmed Roshdi"),
-        coverImageUrl: String(art.coverImageUrl || art.imageUrl || art.image || "/images/hero-egyptian.jpg"),
+        coverImageUrl: String(art.coverImageUrl || art.imageUrl || art.image || "/The_Nile_River_at_Cairo.jpg"),
         tags: Array.isArray(art.tags) ? art.tags : (typeof art.tags === "string" ? art.tags.split(",").map((t: string) => t.trim()) : ["Luxury"]),
-        status: (art.status === "draft" || art.status === "archived") ? art.status : "published",
+        status: (art.status === "draft" || art.status === "archived") ? art.status : ("published" as const),
       }));
 
-      if (bulkCreateMutation) {
-        bulkCreateMutation.mutate({ posts: formatted });
-      } else {
-        // Fallback: create sequentially
-        toast.info(`جاري رفع ${formatted.length} مقالة...`);
-        Promise.all(formatted.map(p => createMutation.mutateAsync({
-          title: p.title,
-          slug: p.slug,
-          excerpt: p.excerpt,
-          content: p.content,
-          category: p.category,
-          authorName: p.authorName,
-          coverImageUrl: p.coverImageUrl,
-          tags: p.tags,
-        }))).then(() => {
-          toast.success(`تم إنشاء ${formatted.length} مقالة بنجاح!`);
-          refetch();
-          setIsBulkOpen(false);
-          setBulkInput("");
-        }).catch(err => {
-          toast.error(`حدث خطأ أثناء الإنشاء: ${err.message}`);
-        });
-      }
+      const res = await bulkImportBlogPosts(formatted);
+      toast.success(`تم استيراد وحفظ ${res.count} مقالة بنجاح دفعة واحدة في الموقع!`);
+      await loadArticles();
+      setIsBulkOpen(false);
+      setBulkInput("");
     } catch (e: any) {
-      toast.error(`صيغة البيانات غير صحيحة: ${e.message}`);
+      console.error("Bulk import error:", e);
+      toast.error(`فشل الاستيراد: ${e.message}`);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -328,6 +278,13 @@ export default function BlogAdmin() {
     reader.readAsText(file);
   };
 
+  const filteredArticles = articles.filter(
+    (a) =>
+      !search ||
+      a.title.toLowerCase().includes(search.toLowerCase()) ||
+      a.category.toLowerCase().includes(search.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -338,11 +295,22 @@ export default function BlogAdmin() {
             إدارة مقالات المدونة (Blog Management)
           </h1>
           <p className="text-xs text-white/50 mt-1">
-            كتابة ونشر المقالات، رفع الصور من الجهاز مباشرة، واستيراد عدد من المقالات دفعة واحدة.
+            كتابة ونشر المقالات، رفع الصور من الجهاز مباشرة، واستيراد عدد من المقالات دفعة واحدة سحابياً.
           </p>
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Refresh Button */}
+          <Button
+            onClick={loadArticles}
+            disabled={isLoading}
+            variant="outline"
+            className="gap-2 bg-white/5 hover:bg-white/10 text-white border-white/10 text-xs h-10"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-[var(--theme-primary)]" : ""}`} />
+            تحديث
+          </Button>
+
           {/* Bulk Import Button */}
           <Button
             onClick={() => setIsBulkOpen(true)}
@@ -399,13 +367,13 @@ export default function BlogAdmin() {
                   جاري تحميل المقالات...
                 </TableCell>
               </TableRow>
-            ) : articles && articles.length > 0 ? (
-              articles.map((article: any) => (
-                <TableRow key={article.id} className="border-white/5 hover:bg-white/[0.02] transition-colors">
-                  <TableCell className="w-16">
-                    <div className="w-12 h-10 rounded-md overflow-hidden bg-white/5 border border-white/10 shrink-0">
+            ) : filteredArticles && filteredArticles.length > 0 ? (
+              filteredArticles.map((article) => (
+                <TableRow key={article.id} className="border-white/5 hover:bg-white/[0.02]">
+                  <TableCell>
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 border border-white/10">
                       <img
-                        src={article.coverImageUrl || article.imageUrl || "/images/hero-egyptian.jpg"}
+                        src={article.coverImageUrl || "/The_Nile_River_at_Cairo.jpg"}
                         alt={article.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
@@ -414,24 +382,30 @@ export default function BlogAdmin() {
                       />
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium text-white text-xs max-w-xs truncate">
-                    <div>{article.title}</div>
-                    <div className="text-[10px] text-white/40 font-mono mt-0.5 truncate">/blog/{article.slug}</div>
+                  <TableCell>
+                    <div className="font-medium text-white text-sm max-w-md truncate">
+                      {article.title}
+                    </div>
+                    <div className="text-[11px] text-white/40 font-mono mt-0.5">
+                      /{article.slug}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="text-xs bg-white/5 text-white/80 border-white/10">
+                      {article.category || "Luxury Travel"}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-white/70">
-                    <span className="px-2 py-0.5 rounded-full bg-white/5 text-[11px] border border-white/10">
-                      {article.category || "General"}
-                    </span>
+                    {article.authorName || "Ahmed Roshdi"}
                   </TableCell>
-                  <TableCell className="text-xs text-white/60">{article.authorName || article.author || "Ahmed Roshdi"}</TableCell>
                   <TableCell>
                     <Badge
-                      className={`text-[10px] font-normal ${
+                      className={`text-[10px] ${
                         article.status === "published"
-                          ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                           : article.status === "archived"
-                          ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
-                          : "bg-white/10 text-white/60 border border-white/20"
+                          ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                          : "bg-white/10 text-white/60 border-white/20"
                       }`}
                     >
                       {article.status === "published"
@@ -464,11 +438,7 @@ export default function BlogAdmin() {
                       <Button
                         size="sm"
                         variant="ghost"
-                        onClick={() => {
-                          if (confirm(`هل أنت متأكد من حذف المقالة "${article.title}"؟`)) {
-                            deleteMutation.mutate({ id: article.id });
-                          }
-                        }}
+                        onClick={() => handleDelete(article)}
                         title="حذف"
                         className="h-8 w-8 p-0 text-red-400 hover:bg-red-500/10"
                       >
@@ -501,102 +471,119 @@ export default function BlogAdmin() {
 
           <div className="space-y-4 pt-2">
             <div>
-              <label className="block text-xs font-medium text-white/80 mb-1">عنوان المقالة (Title)</label>
+              <label className="block text-xs font-medium text-white/80 mb-1">
+                عنوان المقالة *
+              </label>
               <Input
-                placeholder="مثال: أسرار السياحة الفاخرة في القاهرة والأهرامات..."
                 value={formData.title}
                 onChange={(e) => {
-                  const title = e.target.value;
-                  setFormData({
-                    ...formData,
-                    title,
-                    slug: editingId ? formData.slug : generateSlug(title),
-                  });
+                  const val = e.target.value;
+                  setFormData((prev) => ({
+                    ...prev,
+                    title: val,
+                    slug: prev.slug || generateSlug(val),
+                  }));
                 }}
-                className="bg-[#1f1f1f] border-white/10 text-white text-xs h-10"
+                placeholder="مثال: أفضل 10 تجارب سياحية فاخرة في القاهرة 2026"
+                className="bg-white/5 border-white/10 text-white text-xs h-10"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-white/80 mb-1">الرابط الودود (URL Slug)</label>
+              <label className="block text-xs font-medium text-white/80 mb-1">
+                الرابط الدائم (Slug) *
+              </label>
               <Input
-                placeholder="egypt-luxury-travel-guide"
                 value={formData.slug}
                 onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                dir="ltr"
-                className="bg-[#1f1f1f] border-white/10 text-white text-xs font-mono h-10"
+                placeholder="luxury-cairo-experiences-2026"
+                className="bg-white/5 border-white/10 text-white text-xs h-10 font-mono"
               />
             </div>
 
             {/* Direct Device Image Upload */}
             <ImageUploadField
-              label="صورة غلاف المقالة (Cover Image) - رفع مباشر من الجهاز"
+              label="صورة المقال الرئيسية (Cover Image) - رفع مباشر من جهازك"
               value={formData.imageUrl}
               onChange={(url) => setFormData({ ...formData, imageUrl: url })}
-              helperText="يمكنك اختيار صورة من جهاز الكمبيوتر أو الهاتف مباشرة وسيتم رفعها وحفظها تلقائياً."
+              placeholder="ارفع صورة المقال من جهازك..."
             />
 
             <div>
-              <label className="block text-xs font-medium text-white/80 mb-1">ملخص المقالة (Excerpt)</label>
+              <label className="block text-xs font-medium text-white/80 mb-1">
+                ملخص المقالة (Excerpt)
+              </label>
               <Textarea
-                placeholder="ملخص قصير يظهر في بطاقة المقال وفي نتائج محركات البحث (SEO)..."
                 value={formData.excerpt}
                 onChange={(e) => setFormData({ ...formData, excerpt: e.target.value })}
+                placeholder="نبذة مختصرة تظهر في نتائج البحث والبطاقات..."
                 rows={2}
-                className="bg-[#1f1f1f] border-white/10 text-white text-xs"
+                className="bg-white/5 border-white/10 text-white text-xs"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-white/80 mb-1">محتوى المقالة الكامل (Article Content)</label>
+              <label className="block text-xs font-medium text-white/80 mb-1">
+                محتوى المقالة الكامل (Content - يدعم Markdown) *
+              </label>
               <Textarea
-                placeholder="اكتب المقال الكامل هنا. يمكنك استخدام فقرات وعناوين منسقة..."
                 value={formData.content}
                 onChange={(e) => setFormData({ ...formData, content: e.target.value })}
+                placeholder="اكتب المقال الكامل هنا بالتفصيل..."
                 rows={8}
-                className="bg-[#1f1f1f] border-white/10 text-white text-xs leading-relaxed"
+                className="bg-white/5 border-white/10 text-white text-xs leading-relaxed"
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-white/80 mb-1">الفئة (Category)</label>
+                <label className="block text-xs font-medium text-white/80 mb-1">
+                  الفئة (Category)
+                </label>
                 <Input
-                  placeholder="Luxury Travel, Private Jet, Heritage, Hotels..."
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  className="bg-[#1f1f1f] border-white/10 text-white text-xs h-10"
+                  placeholder="Luxury Travel / Private Jet / Yacht"
+                  className="bg-white/5 border-white/10 text-white text-xs h-10"
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-medium text-white/80 mb-1">اسم الكاتب (Author)</label>
+                <label className="block text-xs font-medium text-white/80 mb-1">
+                  المؤلف (Author)
+                </label>
                 <Input
-                  placeholder="Ahmed Roshdi"
                   value={formData.author}
                   onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                  className="bg-[#1f1f1f] border-white/10 text-white text-xs h-10"
+                  placeholder="Ahmed Roshdi"
+                  className="bg-white/5 border-white/10 text-white text-xs h-10"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-white/80 mb-1">الوسوم (Tags - مفصولة بفواصل)</label>
+                <label className="block text-xs font-medium text-white/80 mb-1">
+                  الكلمات المفتاحية (Tags - مفصولة بفواصل)
+                </label>
                 <Input
-                  placeholder="Luxury, Cairo, Jet, VIP"
                   value={formData.tags}
                   onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-                  className="bg-[#1f1f1f] border-white/10 text-white text-xs h-10"
+                  placeholder="Luxury, Private Jet, Egypt, VIP"
+                  className="bg-white/5 border-white/10 text-white text-xs h-10"
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-medium text-white/80 mb-1">حالة المقالة (Status)</label>
+                <label className="block text-xs font-medium text-white/80 mb-1">
+                  حالة النشر
+                </label>
                 <select
                   value={formData.status}
                   onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                  className="w-full h-10 px-3 bg-[#1f1f1f] border border-white/10 rounded-md text-white text-xs focus:outline-none focus:border-[var(--theme-primary)]"
+                  className="w-full bg-[#121216] border border-white/10 rounded-md px-3 text-xs h-10 text-white focus:outline-none focus:border-[var(--theme-primary)]"
                 >
-                  <option value="published">منشورة ومتاحة للزوار (Published)</option>
+                  <option value="published">منشورة علناً (Published)</option>
                   <option value="draft">مسودة خاصة (Draft)</option>
                   <option value="archived">مؤرشفة (Archived)</option>
                 </select>
@@ -613,10 +600,10 @@ export default function BlogAdmin() {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={createMutation.isPending || updateMutation.isPending}
+                disabled={isSaving}
                 className="bg-[var(--theme-primary)] text-[var(--theme-surface)] hover:bg-[var(--theme-primary-light)] font-semibold text-xs h-10 px-6"
               >
-                {createMutation.isPending || updateMutation.isPending ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin ml-1" />
                     جاري الحفظ...
@@ -655,7 +642,7 @@ export default function BlogAdmin() {
 
           <div className="space-y-4 pt-2">
             <p className="text-xs text-white/60">
-              يمكنك رفع ملف JSON أو CSV من جهازك يحتوي على 10 أو 20 أو 50 مقالة، أو لصق البيانات مباشرة هنا وسيتم استيرادها ونشرها فوراً.
+              يمكنك رفع ملف JSON أو CSV من جهازك يحتوي على 10 أو 20 أو 50 مقالة، أو لصق البيانات مباشرة هنا وسيتم استيرادها وحفظها سحابياً فوراً.
             </p>
 
             {/* Upload File Box */}
@@ -718,8 +705,8 @@ export default function BlogAdmin() {
               onChange={(e) => setBulkInput(e.target.value)}
               placeholder={
                 bulkMode === "json"
-                  ? '[\n  {\n    "title": "عنوان المقال الأول",\n    "content": "محتوى المقال الكامل...",\n    "category": "Luxury Travel",\n    "coverImageUrl": "/images/hero-egyptian.jpg"\n  }\n]'
-                  : 'Title,Content,Excerpt,Category,Author,Image\n"عنوان المقال الأول","المحتوى الكامل هنا...","ملخص المقال","Luxury Travel","Ahmed Roshdi","/images/hero.jpg"'
+                  ? '[\n  {\n    "title": "عنوان المقال الأول",\n    "content": "محتوى المقال الكامل...",\n    "category": "Luxury Travel",\n    "coverImageUrl": "/The_Nile_River_at_Cairo.jpg"\n  }\n]'
+                  : 'Title,Content,Excerpt,Category,Author,Image\n"عنوان المقال الأول","المحتوى الكامل هنا...","ملخص المقال","Luxury Travel","Ahmed Roshdi","/The_Nile_River_at_Cairo.jpg"'
               }
               rows={9}
               dir="ltr"
@@ -736,13 +723,13 @@ export default function BlogAdmin() {
               </Button>
               <Button
                 onClick={handleBulkSubmit}
-                disabled={bulkCreateMutation?.isPending}
+                disabled={isImporting}
                 className="bg-[var(--theme-primary)] text-[var(--theme-surface)] hover:bg-[var(--theme-primary-light)] font-semibold text-xs h-10 px-6 gap-2"
               >
-                {bulkCreateMutation?.isPending ? (
+                {isImporting ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    جاري رفع وإنشاء المقالات...
+                    جاري رفع وحفظ المقالات سحابياً...
                   </>
                 ) : (
                   <>

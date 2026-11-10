@@ -5,6 +5,9 @@ import { Upload, Loader2, Image as ImageIcon, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { getFirebaseApp } from "@/lib/firebase-api";
+
 interface ImageUploadFieldProps {
   value: string;
   onChange: (url: string) => void;
@@ -25,44 +28,36 @@ export function ImageUploadField({
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const uploadMutation = trpc.gallery.uploadImage.useMutation({
-    onSuccess: (data) => {
-      onChange(data.url);
-      setIsUploading(false);
-      toast.success("تم رفع الصورة بنجاح وحفظها في الموقع");
-    },
-    onError: (err) => {
-      setIsUploading(false);
-      toast.error(`فشل رفع الصورة: ${err.message || "حدث خطأ غير متوقع"}`);
-    },
-  });
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate size (max 15MB)
-    if (file.size > 15 * 1024 * 1024) {
-      toast.error("حجم الملف كبير جداً (الحد الأقصى 15 ميجابايت)");
+    // Validate size (max 20MB)
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("حجم الملف كبير جداً (الحد الأقصى 20 ميجابايت)");
       return;
     }
 
     setIsUploading(true);
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.split(",")[1];
-      uploadMutation.mutate({
-        fileData: base64,
-        filename: file.name,
-        mimeType: file.type || "image/jpeg",
-      });
-    };
-    reader.onerror = () => {
+    try {
+      const app = getFirebaseApp();
+      if (app) {
+        const storage = getStorage(app);
+        const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+        const fileRef = ref(storage, `uploads/${Date.now()}_${sanitizedName}`);
+        await uploadBytes(fileRef, file, { contentType: file.type || "image/jpeg" });
+        const downloadUrl = await getDownloadURL(fileRef);
+        onChange(downloadUrl);
+        toast.success("تم رفع الصورة بنجاح وحفظها سحابياً");
+      } else {
+        throw new Error("Firebase Storage غير مهيأ");
+      }
+    } catch (err: any) {
+      console.error("Firebase Storage upload error:", err);
+      toast.error(`فشل رفع الصورة: ${err.message || "حدث خطأ غير متوقع"}`);
+    } finally {
       setIsUploading(false);
-      toast.error("فشلت قراءة الملف من الجهاز");
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   return (
