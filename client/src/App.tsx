@@ -92,6 +92,7 @@ const AICommandCenter = lazy(() => import("./pages/admin/AICommandCenter"));
 const LiveVisualEditor = lazy(() => import("./pages/admin/LiveVisualEditor"));
 const DatabaseManagerAdmin = lazy(() => import("./pages/admin/DatabaseManagerAdmin"));
 const SystemMonitorAdmin = lazy(() => import("./pages/admin/SystemMonitorAdmin"));
+const MobileAppAdminHub = lazy(() => import("./pages/admin/MobileAppAdminHub"));
 
 function AdminPortal() {
   return (
@@ -99,6 +100,7 @@ function AdminPortal() {
       <Switch>
         <Route path="/admin" component={AdminDashboardEnhanced} />
         <Route path="/admin/analytics" component={AnalyticsAdmin} />
+        <Route path="/admin/mobile-app" component={MobileAppAdminHub} />
         <Route path="/admin/destinations" component={DestinationsAdmin} />
         <Route path="/admin/packages" component={AdminPackages} />
         <Route path="/admin/offers" component={OffersAdmin} />

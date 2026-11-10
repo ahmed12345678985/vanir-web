@@ -66,6 +66,7 @@ import { Button } from "./ui/button";
 const adminMenuItems = [
   { icon: LayoutDashboard, label: "Overview", path: "/admin", group: "main" },
   { icon: BarChart3, label: "Analytics", path: "/admin/analytics", group: "main" },
+  { icon: MonitorSmartphone, label: "📱 تطبيق الموبايل (Vanir App)", path: "/admin/mobile-app", group: "main" },
   { icon: MapPin, label: "Destinations", path: "/admin/destinations", group: "content" },
   { icon: Crown, label: "Luxury & Packages", path: "/admin/packages", group: "content" },
   { icon: Tag, label: "Offers", path: "/admin/offers", group: "content" },
