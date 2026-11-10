@@ -17,7 +17,7 @@ const env = import.meta.env as Record<string, string | undefined>;
 // استخدم النطاق الافتراضي من Firebase (جاهز للاستخدام)
 const projectId = env.VITE_FIREBASE_PROJECT_ID ?? "gen-lang-client-0364375301";
 const firebaseConfig = {
-  apiKey: env.VITE_FIREBASE_API_KEY ?? "",
+  apiKey: env.VITE_FIREBASE_API_KEY || "AIzaSyAszyNw2a7_bv02cf0FBXiPXwt3E2-CXdY",
   authDomain: env.VITE_FIREBASE_AUTH_DOMAIN ?? `${projectId}.firebaseapp.com`,
   projectId,
   storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET ?? "gen-lang-client-0364375301.firebasestorage.app",
@@ -108,6 +108,12 @@ async function callAuthEndpoint(path: string, idToken: string): Promise<void> {
     console.log("[v0] Auth endpoint response:", { status: res.status, ok: res.ok, url });
     
     if (!res.ok) {
+      if (res.status === 405 || res.status === 404) {
+        // Cloudflare Pages is static and does not host custom Express endpoints
+        // Firebase client-side session is fully valid and authenticated
+        console.warn("[v0] Static hosting detected (405/404), proceeding with client Firebase session");
+        return;
+      }
       const body = await res.json().catch(() => ({})) as { error?: string };
       console.error("[v0] Auth endpoint error response:", body);
       throw new Error(body.error || `Request failed: ${res.status}`);
