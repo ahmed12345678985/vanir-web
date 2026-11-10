@@ -176,12 +176,15 @@ export default function MobileAppAdminHub() {
     }
     setSendingPush(true);
     try {
-      await sendMobilePushNotification({
-        title: pushTitle,
-        body: pushBody,
-        imageUrl: pushImageUrl || undefined,
-        targetScreen: pushTarget,
-      });
+      const notifData: any = {
+        title: pushTitle.trim(),
+        body: pushBody.trim(),
+        targetScreen: pushTarget || "HomeScreen",
+      };
+      if (pushImageUrl && pushImageUrl.trim() !== "") {
+        notifData.imageUrl = pushImageUrl.trim();
+      }
+      await sendMobilePushNotification(notifData);
       showToast("تم إرسال الإشعار الخارجي (Push Notification) بنجاح لجميع مستخدمي التطبيق!");
       setPushTitle("");
       setPushBody("");
