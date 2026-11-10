@@ -22,9 +22,9 @@ const isVideoUrl = (url?: string): boolean => {
 };
 
 const DEFAULT_SLIDES = [
-  "/images/hero-egyptian.jpg",
   "/images/The_Nile_River_at_Cairo.jpg",
   "/images/final_cairo_post.png",
+  "https://images.unsplash.com/photo-1539650116574-75c0c6d73c0e?w=1600&q=80",
 ];
 
 export default function HeroSection() {
@@ -90,7 +90,7 @@ export default function HeroSection() {
       if (Array.isArray(heroImages) && heroImages.length > 0 && heroImages[0]?.url) {
         return [heroImages[0].url.trim()];
       }
-      return ["/images/hero-egyptian.jpg"];
+      return ["/images/The_Nile_River_at_Cairo.jpg"];
     }
 
     // 2. Video Mode: single video URL
@@ -98,7 +98,7 @@ export default function HeroSection() {
       if (heroData?.mediaUrl && typeof heroData.mediaUrl === "string" && heroData.mediaUrl.trim() !== "") {
         return [heroData.mediaUrl.trim()];
       }
-      return ["/images/hero-egyptian.jpg"];
+      return ["/images/The_Nile_River_at_Cairo.jpg"];
     }
 
     // 3. Dynamic Slider Mode: ONLY use the user's active slides from heroImages
