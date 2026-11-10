@@ -59,6 +59,8 @@ export interface MobileCatalogEntity {
 export interface MobilePaymentConfig {
   paypalEnabled: boolean;
   paypalClientId: string;
+  paypalSecret?: string;
+  paypalBusinessEmail?: string;
   paypalMode: 'sandbox' | 'live';
   stripeEnabled: boolean;
   stripePublishableKey: string;
@@ -369,7 +371,9 @@ export const INITIAL_COMPREHENSIVE_CATALOG: MobileCatalogEntity[] = [
 
 export const DEFAULT_PAYMENT_CONFIG: MobilePaymentConfig = {
   paypalEnabled: true,
-  paypalClientId: 'vanir_paypal_client_id_placeholder',
+  paypalClientId: 'ATRGNi3bP3BAuwyiEcjHlITjnaN3ZqnTCNt_dTB-OF1d1cSFVF62UZj4n_TEsN-TF5XJeApKr2jTMjCX',
+  paypalSecret: 'EFDVUZ9lZEiNThnXKWXDd8k8bTpDM7dIpsqWUd_4FUtc1JwyTLy8kNh0YOCkFjYdvHrkrOHa5CufjJov',
+  paypalBusinessEmail: 'sb-xpccb42269737@business.example.com',
   paypalMode: 'sandbox',
   stripeEnabled: false,
   stripePublishableKey: '',

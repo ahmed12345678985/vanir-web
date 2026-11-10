@@ -55,7 +55,9 @@ export default function MobileAppAdminHub() {
   // 2. Payments State
   const [paymentConfig, setPaymentConfig] = useState<MobilePaymentConfig>({
     paypalEnabled: true,
-    paypalClientId: "",
+    paypalClientId: "ATRGNi3bP3BAuwyiEcjHlITjnaN3ZqnTCNt_dTB-OF1d1cSFVF62UZj4n_TEsN-TF5XJeApKr2jTMjCX",
+    paypalSecret: "EFDVUZ9lZEiNThnXKWXDd8k8bTpDM7dIpsqWUd_4FUtc1JwyTLy8kNh0YOCkFjYdvHrkrOHa5CufjJov",
+    paypalBusinessEmail: "sb-xpccb42269737@business.example.com",
     paypalMode: "sandbox",
     stripeEnabled: false,
     stripePublishableKey: "",
@@ -63,9 +65,9 @@ export default function MobileAppAdminHub() {
     customApiUrl: "",
     customApiKey: "",
     bankWireEnabled: true,
-    bankWireIban: "",
-    bankWireSwift: "",
-    bankWireName: "",
+    bankWireIban: "EG820002000100000012345678901",
+    bankWireSwift: "MISREGCAXXX",
+    bankWireName: "Vanir Group International",
     currency: "USD",
   });
 
