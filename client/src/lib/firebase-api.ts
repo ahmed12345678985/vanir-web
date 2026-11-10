@@ -71,9 +71,6 @@ export function apiBase(): string {
   return "";
 }
 
-// Read-only session check. Polls the SAME origin that the login request used
-// (apiBase) so it can see the session cookie even when VITE_API_URL points to a
-// different API origin than the page. Returns true once the session is confirmed.
 export async function verifyServerSession(maxRetries = 5): Promise<boolean> {
   const delays = [0, 150, 300, 500, 800];
   for (let i = 0; i < maxRetries; i++) {
@@ -87,11 +84,23 @@ export async function verifyServerSession(maxRetries = 5): Promise<boolean> {
         const data = await res.json().catch(() => null);
         if (data) return true;
       }
+      if (res.status === 405 || res.status === 404) {
+        // Static hosting: check client Firebase session directly
+        const app = getFirebaseApp();
+        if (app && getAuth(app).currentUser) {
+          return true;
+        }
+      }
     } catch {
-      // Network error — keep retrying
+      // Network error — check client Firebase auth
+      const app = getFirebaseApp();
+      if (app && getAuth(app).currentUser) {
+        return true;
+      }
     }
   }
-  return false;
+  const app = getFirebaseApp();
+  return Boolean(app && getAuth(app).currentUser);
 }
 
 async function callAuthEndpoint(path: string, idToken: string): Promise<void> {

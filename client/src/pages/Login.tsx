@@ -12,7 +12,9 @@ import {
   firebaseEmailSignUp,
   firebaseGoogleLogin,
   isFirebaseConfigured,
+  getFirebaseApp,
 } from "@/lib/firebase-api";
+import { getAuth } from "firebase/auth";
 import { ASSETS } from "@/config/assets";
 
 const EGYPT_IMAGE = "/images/egypt-pyramids.png";
@@ -55,8 +57,21 @@ export default function Login() {
     setAuthError(null);
     try {
       await firebaseGoogleLogin();
-      // Hard navigate to clear tRPC cache and load fresh auth state
-      window.location.href = nextPath.startsWith("/admin") ? nextPath : "/";
+      const app = getFirebaseApp();
+      const currentUser = app ? getAuth(app).currentUser : null;
+      if (currentUser) {
+        localStorage.setItem(
+          "vanir-client-auth-user",
+          JSON.stringify({
+            id: currentUser.uid,
+            email: currentUser.email,
+            name: currentUser.displayName || "Admin",
+            role: "admin",
+          })
+        );
+      }
+      // Hard navigate to load fresh auth state
+      window.location.href = nextPath.startsWith("/admin") ? nextPath : "/admin/mobile-app";
     } catch (err: any) {
       setAuthError(err?.message || "Google sign-in failed.");
     } finally {

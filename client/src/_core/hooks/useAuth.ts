@@ -58,17 +58,19 @@ export function useAuth(options?: UseAuthOptions) {
     }
     
     // Store current user data
-    try {
-      localStorage.setItem(newKey, JSON.stringify(meQuery.data));
-    } catch {
-      // ignore localStorage errors
+    let currentUser = meQuery.data ?? null;
+    if (!currentUser) {
+      try {
+        const stored = localStorage.getItem("vanir-client-auth-user");
+        if (stored) currentUser = JSON.parse(stored);
+      } catch {}
     }
     
     return {
-      user: meQuery.data ?? null,
-      loading: meQuery.isLoading || logoutMutation.isPending,
+      user: currentUser,
+      loading: meQuery.isLoading && !currentUser,
       error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated: Boolean(meQuery.data),
+      isAuthenticated: Boolean(currentUser),
     };
   }, [
     meQuery.data,
