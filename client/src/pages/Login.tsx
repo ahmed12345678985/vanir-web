@@ -17,7 +17,7 @@ import {
 import { getAuth } from "firebase/auth";
 import { ASSETS } from "@/config/assets";
 
-const EGYPT_IMAGE = "/images/egypt-pyramids.png";
+const EGYPT_IMAGE = "/images/The_Nile_River_at_Cairo.jpg";
 
 export default function Login() {
   const { user, isAuthenticated } = useAuth();
@@ -71,7 +71,7 @@ export default function Login() {
         );
       }
       // Hard navigate to load fresh auth state
-      window.location.href = nextPath.startsWith("/admin") ? nextPath : "/admin/mobile-app";
+      window.location.href = nextPath.startsWith("/admin") ? nextPath : "/";
     } catch (err: any) {
       setAuthError(err?.message || "Google sign-in failed.");
     } finally {
@@ -96,6 +96,19 @@ export default function Login() {
         await firebaseEmailLogin(email, password);
       } else {
         await firebaseEmailSignUp(email, password, name || undefined);
+      }
+      const app = getFirebaseApp();
+      const currentUser = app ? getAuth(app).currentUser : null;
+      if (currentUser) {
+        localStorage.setItem(
+          "vanir-client-auth-user",
+          JSON.stringify({
+            id: currentUser.uid,
+            email: currentUser.email,
+            name: currentUser.displayName || name || "User",
+            role: "admin",
+          })
+        );
       }
       // Hard navigate to clear tRPC cache and load fresh auth state
       window.location.href = nextPath.startsWith("/admin") ? nextPath : "/";

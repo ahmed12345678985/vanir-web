@@ -14,6 +14,12 @@ import App from "./App";
 import { getFirebaseAuth } from "@/lib/firebase-api";
 import { installGlobalImageErrorHandler } from "@/lib/imageFallback";
 import { ThemeColorsProvider } from "./contexts/ThemeColorsProvider";
+import {
+  getFirestoreSetting,
+  setFirestoreSetting,
+  getFirestoreSettingsByCategory,
+  uploadBase64Media,
+} from "./lib/siteSettingsApi";
 import "./index.css";
 
 // Ensure dark theme is always applied
@@ -99,9 +105,99 @@ const trpcClient = trpc.createClient({
           credentials: "include",
         });
 
-        // إذا كان الموقع منشوراً كصفحة ساكنة (Cloudflare Pages) والـ API غير متاح
-        // نعيد استجابة JSON فارغة بدلاً من رمي خطأ Unexpected end of JSON input
+        // إذا كان الموقع منشوراً كصفحة ساكنة (Cloudflare Pages) والـ API غير متاح (404/405)
+        // نعترض طلبات gallery.uploadImage و siteSettings وننفذها مباشرة عبر Firebase
         if (!res.ok || res.status === 404 || res.status === 405) {
+          const inputUrl = typeof input === "string" ? input : (input as Request)?.url || "";
+          
+          // 1. اعتراض رفع الصور gallery.uploadImage
+          if (inputUrl.includes("gallery.uploadImage") && init?.body) {
+            try {
+              const bodyStr = typeof init.body === "string" ? init.body : "";
+              const parsed = JSON.parse(bodyStr);
+              const dataPayload = parsed["0"]?.json || parsed.json || parsed;
+              const { fileData, filename, mimeType } = dataPayload;
+              if (fileData) {
+                const downloadUrl = await uploadBase64Media(
+                  fileData,
+                  filename || `upload_${Date.now()}`,
+                  mimeType || "image/jpeg",
+                  "gallery"
+                );
+                return new Response(
+                  JSON.stringify([{ result: { data: { json: { url: downloadUrl, fileKey: filename } } } }]),
+                  { status: 200, headers: { "Content-Type": "application/json" } }
+                );
+              }
+            } catch (err) {
+              console.error("[tRPC Interceptor] gallery.uploadImage error:", err);
+            }
+          }
+
+          // 2. اعتراض حفظ الإعدادات siteSettings.set
+          if (inputUrl.includes("siteSettings.set") && init?.body) {
+            try {
+              const bodyStr = typeof init.body === "string" ? init.body : "";
+              const parsed = JSON.parse(bodyStr);
+              const dataPayload = parsed["0"]?.json || parsed.json || parsed;
+              const { category, key, value } = dataPayload;
+              if (category && key) {
+                await setFirestoreSetting(category, key, value ?? "");
+                return new Response(
+                  JSON.stringify([{ result: { data: { json: { success: true } } } }]),
+                  { status: 200, headers: { "Content-Type": "application/json" } }
+                );
+              }
+            } catch (err) {
+              console.error("[tRPC Interceptor] siteSettings.set error:", err);
+            }
+          }
+
+          // 3. اعتراض جلب إعداد واحد siteSettings.get
+          if (inputUrl.includes("siteSettings.get")) {
+            try {
+              const urlObj = new URL(inputUrl, window.location.origin);
+              const batchParam = urlObj.searchParams.get("batch");
+              const inputParam = urlObj.searchParams.get("input");
+              if (inputParam) {
+                const parsed = JSON.parse(inputParam);
+                const queryPayload = parsed["0"]?.json || parsed.json || parsed;
+                const { category, key } = queryPayload;
+                if (category && key) {
+                  const val = await getFirestoreSetting(category, key);
+                  return new Response(
+                    JSON.stringify([{ result: { data: { json: val } } }]),
+                    { status: 200, headers: { "Content-Type": "application/json" } }
+                  );
+                }
+              }
+            } catch (err) {
+              console.error("[tRPC Interceptor] siteSettings.get error:", err);
+            }
+          }
+
+          // 4. اعتراض جلب إعدادات فئة siteSettings.getByCategory
+          if (inputUrl.includes("siteSettings.getByCategory") || inputUrl.includes("siteSettings.getPublicCategory")) {
+            try {
+              const urlObj = new URL(inputUrl, window.location.origin);
+              const inputParam = urlObj.searchParams.get("input");
+              if (inputParam) {
+                const parsed = JSON.parse(inputParam);
+                const queryPayload = parsed["0"]?.json || parsed.json || parsed;
+                const { category } = queryPayload;
+                if (category) {
+                  const val = await getFirestoreSettingsByCategory(category);
+                  return new Response(
+                    JSON.stringify([{ result: { data: { json: val } } }]),
+                    { status: 200, headers: { "Content-Type": "application/json" } }
+                  );
+                }
+              }
+            } catch (err) {
+              console.error("[tRPC Interceptor] siteSettings.getByCategory error:", err);
+            }
+          }
+
           const contentType = res.headers.get("content-type") || "";
           if (!contentType.includes("application/json")) {
             return new Response(

@@ -10,6 +10,11 @@ import { Upload, Save, AlertCircle, Eye, ImageIcon, Type, Link2, Sparkles, Loade
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import type { SubPageHero } from "@/contexts/ThemeColorsProvider";
+import {
+  getFirestoreSetting,
+  setFirestoreSetting,
+  uploadDirectMedia,
+} from "@/lib/siteSettingsApi";
 
 /* ─── Types ─── */
 interface HeroImage {
@@ -235,6 +240,57 @@ export default function HeroAdmin() {
   const setMut = trpc.siteSettings.set.useMutation();
   const uploadImageMut = trpc.gallery.uploadImage.useMutation();
 
+  // Initial fetch from direct Firestore siteSettings collection (primary)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [settingsVal, imagesVal, subVal] = await Promise.all([
+          getFirestoreSetting("hero", "hero_settings"),
+          getFirestoreSetting("hero", "hero_images"),
+          getFirestoreSetting("hero", "sub_page_heroes"),
+        ]);
+        if (!mounted) return;
+        if (settingsVal) {
+          try {
+            const p = JSON.parse(settingsVal);
+            setHeroData(prev => ({
+              ...prev,
+              ...p,
+              backgroundType: p.backgroundType || (p.mediaType === "video" ? "html5-video" : "static-image"),
+              sliderEngine: p.sliderEngine || "framer-motion",
+              sliderEffect: p.sliderEffect || "fade",
+              autoplayMs: typeof p.autoplayMs === "number" ? p.autoplayMs : 3500,
+              loopSlides: typeof p.loopSlides === "boolean" ? p.loopSlides : true,
+              textFadeInEnabled: typeof p.textFadeInEnabled === "boolean" ? p.textFadeInEnabled : true,
+              textFadeInDuration: typeof p.textFadeInDuration === "number" ? p.textFadeInDuration : 900,
+              textPositionX: typeof p.textPositionX === "number" ? p.textPositionX : 0,
+              textPositionY: typeof p.textPositionY === "number" ? p.textPositionY : 0,
+              mobileMediaUrl: p.mobileMediaUrl || "",
+              mobileMediaCropX: typeof p.mobileMediaCropX === "number" ? p.mobileMediaCropX : 50,
+              mobileMediaCropY: typeof p.mobileMediaCropY === "number" ? p.mobileMediaCropY : 50,
+            }));
+          } catch {}
+        }
+        if (imagesVal) {
+          try {
+            const p = JSON.parse(imagesVal);
+            if (Array.isArray(p) && p.length > 0) setHeroImages(p);
+          } catch {}
+        }
+        if (subVal) {
+          try {
+            const p = JSON.parse(subVal);
+            if (Array.isArray(p)) setSubHeroes(p);
+          } catch {}
+        }
+      } catch (err) {
+        console.warn("Direct Firestore hero load error:", err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   useEffect(() => {
     const payload = savedData || savedDataLegacy;
     if (!payload) return;
@@ -265,12 +321,14 @@ export default function HeroAdmin() {
   const saveToDb = useCallback(async () => {
     setSaving(true);
     try {
-      await setMut.mutateAsync({ category: "hero", key: "hero_settings", value: JSON.stringify(heroData) });
-      await setMut.mutateAsync({ category: "hero", key: "hero_images", value: JSON.stringify(heroImages) });
+      await setFirestoreSetting("hero", "hero_settings", JSON.stringify(heroData));
+      await setFirestoreSetting("hero", "hero_images", JSON.stringify(heroImages));
+      setMut.mutateAsync({ category: "hero", key: "hero_settings", value: JSON.stringify(heroData) }).catch(() => {});
+      setMut.mutateAsync({ category: "hero", key: "hero_images", value: JSON.stringify(heroImages) }).catch(() => {});
       setHasChanges(false);
       toast.success("تم الحفظ في قاعدة البيانات (Firebase Firestore)");
-    } catch {
-      toast.error("فشل في الحفظ");
+    } catch (err: unknown) {
+      toast.error(`فشل في الحفظ: ${err instanceof Error ? err.message : "خطأ غير متوقع"}`);
     } finally { setSaving(false); }
   }, [setMut, heroData, heroImages]);
 
@@ -278,11 +336,12 @@ export default function HeroAdmin() {
   const saveSubHeroes = useCallback(async () => {
     setSubSaving(true);
     try {
-      await setMut.mutateAsync({ category: "hero", key: "sub_page_heroes", value: JSON.stringify(subHeroes) });
+      await setFirestoreSetting("hero", "sub_page_heroes", JSON.stringify(subHeroes));
+      setMut.mutateAsync({ category: "hero", key: "sub_page_heroes", value: JSON.stringify(subHeroes) }).catch(() => {});
       setSubHasChanges(false);
-      toast.success("تم حفظ الصفحات الفرعية");
-    } catch {
-      toast.error("فشل في الحفظ");
+      toast.success("تم حفظ الصفحات الفرعية (Firebase Firestore)");
+    } catch (err: unknown) {
+      toast.error(`فشل في الحفظ: ${err instanceof Error ? err.message : "خطأ غير متوقع"}`);
     } finally { setSubSaving(false); }
   }, [setMut, subHeroes]);
 
@@ -292,19 +351,27 @@ export default function HeroAdmin() {
   /* ─── Media upload (Firebase Storage) ─── */
   const uploadMedia = async (file: File): Promise<string> => {
     if (file.size > MAX_FILE_SIZE) throw new Error("حجم الملف يتجاوز 10MB");
-    const dataUrl = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-    const base64 = dataUrl.split(",")[1];
-    const { url } = await uploadImageMut.mutateAsync({
-      fileData: base64,
-      filename: file.name,
-      mimeType: file.type,
-    });
-    return url;
+    try {
+      // 1. Direct upload to Firebase Storage (reliable on static hosting)
+      const downloadUrl = await uploadDirectMedia(file, "hero");
+      return downloadUrl;
+    } catch (directErr) {
+      console.warn("Direct upload fallback to tRPC:", directErr);
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const base64 = dataUrl.split(",")[1];
+      const res = await uploadImageMut.mutateAsync({
+        fileData: base64,
+        filename: file.name,
+        mimeType: file.type,
+      });
+      if (res && res.url) return res.url;
+      throw directErr;
+    }
   };
 
   const handleImageUpload = async (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
