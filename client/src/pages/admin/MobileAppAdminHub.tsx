@@ -23,39 +23,36 @@ import {
   ExternalLink,
   Layers,
   Sliders,
+  Filter,
 } from "lucide-react";
 import {
-  fetchMobileCards,
-  saveMobileCards,
-  fetchMobilePricing,
-  saveMobilePricing,
+  fetchFullMobileCatalog,
+  saveFullMobileCatalog,
   fetchMobilePaymentConfig,
   saveMobilePaymentConfig,
   sendMobilePushNotification,
   fetchRecentNotifications,
   uploadMobileImage,
-  type MobileFeedCard,
-  type MobilePricingRule,
+  type MobileCatalogEntity,
   type MobilePaymentConfig,
   type PushNotificationPayload,
+  type ServiceType,
 } from "@/lib/mobileAppApi";
 
 export default function MobileAppAdminHub() {
-  const [activeTab, setActiveTab] = useState<"photos" | "pricing" | "payments" | "push">("photos");
+  const [activeTab, setActiveTab] = useState<"catalog" | "payments" | "push">("catalog");
+  const [selectedService, setSelectedService] = useState<"all" | ServiceType>("all");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // 1. Photos & Cards State
-  const [cards, setCards] = useState<MobileFeedCard[]>([]);
-  const [uploadingCardId, setUploadingCardId] = useState<string | null>(null);
+  // 1. Catalog Items (Hotels, Jets, Yachts, Cars)
+  const [catalogItems, setCatalogItems] = useState<MobileCatalogEntity[]>([]);
+  const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedCardForUpload, setSelectedCardForUpload] = useState<string | null>(null);
+  const [selectedItemForUpload, setSelectedItemForUpload] = useState<string | null>(null);
 
-  // 2. Pricing State
-  const [pricingRules, setPricingRules] = useState<MobilePricingRule[]>([]);
-
-  // 3. Payments State
+  // 2. Payments State
   const [paymentConfig, setPaymentConfig] = useState<MobilePaymentConfig>({
     paypalEnabled: true,
     paypalClientId: "",
@@ -72,7 +69,7 @@ export default function MobileAppAdminHub() {
     currency: "USD",
   });
 
-  // 4. Push Notifications State
+  // 3. Push Notifications State
   const [pushTitle, setPushTitle] = useState("");
   const [pushBody, setPushBody] = useState("");
   const [pushImageUrl, setPushImageUrl] = useState("");
@@ -82,22 +79,6 @@ export default function MobileAppAdminHub() {
   const [uploadingPushImage, setUploadingPushImage] = useState(false);
   const pushFileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handlePushImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadingPushImage(true);
-    try {
-      const url = await uploadMobileImage(file, "push_banners");
-      setPushImageUrl(url);
-      showToast("تم رفع صورة الإشعار من جهازك بنجاح!");
-    } catch (err: any) {
-      alert("خطأ أثناء رفع صورة الإشعار: " + err.message);
-    } finally {
-      setUploadingPushImage(false);
-      if (pushFileInputRef.current) pushFileInputRef.current.value = "";
-    }
-  }
-
   useEffect(() => {
     loadAllData();
   }, []);
@@ -105,14 +86,12 @@ export default function MobileAppAdminHub() {
   async function loadAllData() {
     setLoading(true);
     try {
-      const [fetchedCards, fetchedPricing, fetchedPayments, fetchedNotifs] = await Promise.all([
-        fetchMobileCards(),
-        fetchMobilePricing(),
+      const [fetchedItems, fetchedPayments, fetchedNotifs] = await Promise.all([
+        fetchFullMobileCatalog(),
         fetchMobilePaymentConfig(),
         fetchRecentNotifications(),
       ]);
-      setCards(fetchedCards);
-      setPricingRules(fetchedPricing);
+      setCatalogItems(fetchedItems);
       setPaymentConfig(fetchedPayments);
       setPushHistory(fetchedNotifs);
     } catch (err) {
@@ -130,43 +109,48 @@ export default function MobileAppAdminHub() {
   // Handle Photo Upload directly from user machine
   async function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !selectedCardForUpload) return;
+    if (!file || !selectedItemForUpload) return;
 
-    setUploadingCardId(selectedCardForUpload);
+    setUploadingItemId(selectedItemForUpload);
     try {
-      const newUrl = await uploadMobileImage(file, "app_cards");
-      setCards((prev) =>
-        prev.map((c) => (c.id === selectedCardForUpload ? { ...c, image: newUrl } : c))
+      const newUrl = await uploadMobileImage(file, "catalog_photos");
+      setCatalogItems((prev) =>
+        prev.map((c) => (c.id === selectedItemForUpload ? { ...c, image: newUrl } : c))
       );
-      showToast("تم رفع واستبدال صورة البطاقة بنجاح!");
+      showToast("تم رفع واستبدال الصورة مباشرة من جهازك بنجاح!");
     } catch (err: any) {
       alert("خطأ أثناء رفع الصورة: " + (err?.message || "تأكد من اتصالك"));
     } finally {
-      setUploadingCardId(null);
-      setSelectedCardForUpload(null);
+      setUploadingItemId(null);
+      setSelectedItemForUpload(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
-  async function handleSaveCards() {
-    setSaving(true);
+  // Upload Push Notification Banner from device
+  async function handlePushImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingPushImage(true);
     try {
-      await saveMobileCards(cards);
-      showToast("تم حفظ ونشر بطاقات وصور التطبيق مباشرة لجميع الهواتف!");
+      const url = await uploadMobileImage(file, "push_banners");
+      setPushImageUrl(url);
+      showToast("تم رفع صورة الإشعار من جهازك بنجاح!");
     } catch (err: any) {
-      alert("خطأ في الحفظ: " + err.message);
+      alert("خطأ أثناء رفع صورة الإشعار: " + err.message);
     } finally {
-      setSaving(false);
+      setUploadingPushImage(false);
+      if (pushFileInputRef.current) pushFileInputRef.current.value = "";
     }
   }
 
-  async function handleSavePricing() {
+  async function handleSaveCatalog() {
     setSaving(true);
     try {
-      await saveMobilePricing(pricingRules);
-      showToast("تم تحديث قائمة الأسعار والعملات في التطبيق بنجاح!");
+      await saveFullMobileCatalog(catalogItems);
+      showToast("تم حفظ ونشر كافة الصور والأسعار مباشرة لتطبيق الموبايل لجميع الهواتف!");
     } catch (err: any) {
-      alert("خطأ في حفظ الأسعار: " + err.message);
+      alert("خطأ في الحفظ: " + err.message);
     } finally {
       setSaving(false);
     }
@@ -211,9 +195,13 @@ export default function MobileAppAdminHub() {
     }
   }
 
+  const filteredItems = selectedService === "all"
+    ? catalogItems
+    : catalogItems.filter((item) => item.type === selectedService);
+
   return (
     <div className="min-h-screen bg-[#07070a] text-[#F8F9FA] p-6 lg:p-10 font-sans" dir="rtl">
-      {/* Hidden file input */}
+      {/* Hidden file input for catalog images */}
       <input
         type="file"
         ref={fileInputRef}
@@ -239,7 +227,7 @@ export default function MobileAppAdminHub() {
                 </span>
               </div>
               <p className="text-sm text-[#8892B0] mt-1">
-                إدارة صور وبانرات التطبيق لحظياً، تحديث الأسعار، بوابات الدفع و PayPal، وإرسال إشعارات الهواتف.
+                إدارة صور وأسعار كافة الفنادق، الطيران الخاص، اليخوت الفاخرة، والسيارات لحظياً + بوابات الدفع وإشعارات الهواتف.
               </p>
             </div>
           </div>
@@ -268,27 +256,15 @@ export default function MobileAppAdminHub() {
       {/* Navigation Tabs */}
       <div className="flex items-center gap-2 border-b border-white/[0.08] mb-8 overflow-x-auto pb-2">
         <button
-          onClick={() => setActiveTab("photos")}
+          onClick={() => setActiveTab("catalog")}
           className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-            activeTab === "photos"
+            activeTab === "catalog"
               ? "bg-[#c9a84c] text-[#07070a] shadow-[0_4px_20px_rgba(201,168,76,0.3)]"
               : "text-[#8892B0] hover:text-white hover:bg-white/[0.04]"
           }`}
         >
-          <ImageIcon className="w-4 h-4" />
-          <span>تغيير ورفع صور التطبيق</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("pricing")}
-          className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-            activeTab === "pricing"
-              ? "bg-[#c9a84c] text-[#07070a] shadow-[0_4px_20px_rgba(201,168,76,0.3)]"
-              : "text-[#8892B0] hover:text-white hover:bg-white/[0.04]"
-          }`}
-        >
-          <DollarSign className="w-4 h-4" />
-          <span>إدارة وتعديل الأسعار</span>
+          <Layers className="w-4 h-4" />
+          <span>إدارة كافة خدمات وصور وأسعار التطبيق ({catalogItems.length} عنصر)</span>
         </button>
 
         <button
@@ -316,68 +292,132 @@ export default function MobileAppAdminHub() {
         </button>
       </div>
 
-      {/* ======================= TAB 1: PHOTOS & CARDS ======================= */}
-      {activeTab === "photos" && (
+      {/* ======================= TAB 1: COMPREHENSIVE CATALOG ======================= */}
+      {activeTab === "catalog" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">بطاقات وصور شاشة التطبيق الرئيسية</h2>
-              <p className="text-xs text-[#8892B0] mt-1">
-                اضغط على زر "رفع صورة جديدة من جهازك" على أي بطاقة، وسيتم رفعها وتحديثها فوراً على هواتف المستخدمين.
-              </p>
+          {/* Sub-Filters by Category */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#10101a] p-4 rounded-2xl border border-white/[0.08]">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <span className="text-xs text-[#8892B0] font-medium ml-2">تصنيف الخدمة:</span>
+              <button
+                onClick={() => setSelectedService("all")}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedService === "all"
+                    ? "bg-[#c9a84c] text-black"
+                    : "bg-[#181828] text-[#CCD6F6] hover:bg-white/10"
+                }`}
+              >
+                الكل ({catalogItems.length})
+              </button>
+              <button
+                onClick={() => setSelectedService("hotel")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedService === "hotel"
+                    ? "bg-[#c9a84c] text-black"
+                    : "bg-[#181828] text-[#CCD6F6] hover:bg-white/10"
+                }`}
+              >
+                <Building className="w-3.5 h-3.5" />
+                <span>الفنادق والمنتجعات ({catalogItems.filter((i) => i.type === "hotel").length})</span>
+              </button>
+              <button
+                onClick={() => setSelectedService("jet")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedService === "jet"
+                    ? "bg-[#c9a84c] text-black"
+                    : "bg-[#181828] text-[#CCD6F6] hover:bg-white/10"
+                }`}
+              >
+                <Plane className="w-3.5 h-3.5" />
+                <span>الطيران الخاص ({catalogItems.filter((i) => i.type === "jet").length})</span>
+              </button>
+              <button
+                onClick={() => setSelectedService("yacht")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedService === "yacht"
+                    ? "bg-[#c9a84c] text-black"
+                    : "bg-[#181828] text-[#CCD6F6] hover:bg-white/10"
+                }`}
+              >
+                <ShipWheel className="w-3.5 h-3.5" />
+                <span>اليخوت الفاخرة ({catalogItems.filter((i) => i.type === "yacht").length})</span>
+              </button>
+              <button
+                onClick={() => setSelectedService("car")}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  selectedService === "car"
+                    ? "bg-[#c9a84c] text-black"
+                    : "bg-[#181828] text-[#CCD6F6] hover:bg-white/10"
+                }`}
+              >
+                <Car className="w-3.5 h-3.5" />
+                <span>السيارات الفارهة ({catalogItems.filter((i) => i.type === "car").length})</span>
+              </button>
             </div>
+
             <button
-              onClick={handleSaveCards}
+              onClick={handleSaveCatalog}
               disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#c9a84c] to-[#8b6914] text-[#07070a] font-bold text-sm hover:brightness-110 shadow-[0_4px_20px_rgba(201,168,76,0.3)] transition-all disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#c9a84c] to-[#8b6914] text-[#07070a] font-bold text-sm hover:brightness-110 shadow-[0_4px_20px_rgba(201,168,76,0.3)] transition-all shrink-0 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{saving ? "جاري الحفظ..." : "نشر التغييرات للتطبيق"}</span>
+              <span>{saving ? "جاري الحفظ..." : "نشر جميع التعديلات للتطبيق"}</span>
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {cards.map((card) => (
+          {/* Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredItems.map((item) => (
               <div
-                key={card.id}
+                key={item.id}
                 className="group relative rounded-2xl border border-white/[0.08] bg-[#10101a] overflow-hidden hover:border-[#c9a84c]/50 transition-all shadow-[0_10px_30px_rgba(0,0,0,0.4)] flex flex-col justify-between"
               >
                 <div>
-                  {/* Image Preview */}
+                  {/* Image Preview with direct upload trigger */}
                   <div className="relative h-48 w-full overflow-hidden bg-black/40">
                     <img
-                      src={card.image}
-                      alt={card.title}
+                      src={item.image}
+                      alt={item.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-all duration-500"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#10101a] via-transparent to-black/40" />
 
-                    {/* Tag badge */}
-                    <div className="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-bold bg-[#07070a]/80 text-[#ecd58e] border border-[#c9a84c]/30 backdrop-blur-sm">
-                      {card.tag}
+                    {/* Service Type Badge */}
+                    <div className="absolute top-3 right-3 px-3 py-1 rounded-full text-[11px] font-bold bg-[#07070a]/80 text-[#ecd58e] border border-[#c9a84c]/30 backdrop-blur-sm flex items-center gap-1.5">
+                      {item.type === "hotel" && <Building className="w-3 h-3 text-[#c9a84c]" />}
+                      {item.type === "jet" && <Plane className="w-3 h-3 text-[#c9a84c]" />}
+                      {item.type === "yacht" && <ShipWheel className="w-3 h-3 text-[#c9a84c]" />}
+                      {item.type === "car" && <Car className="w-3 h-3 text-[#c9a84c]" />}
+                      <span>
+                        {item.type === "hotel"
+                          ? "فندق"
+                          : item.type === "jet"
+                          ? "طيران خاص"
+                          : item.type === "yacht"
+                          ? "يخت فاخر"
+                          : "سيارة فاخرة"}
+                      </span>
                     </div>
 
-                    {/* Price tag */}
-                    {card.price && (
-                      <div className="absolute bottom-3 left-3 px-3 py-1 rounded-lg text-xs font-bold bg-[#c9a84c] text-[#07070a] shadow-md">
-                        {card.price}
-                      </div>
-                    )}
+                    {/* Price Tag badge */}
+                    <div className="absolute bottom-3 left-3 px-2.5 py-1 rounded-lg text-xs font-bold bg-[#c9a84c] text-[#07070a] shadow-md">
+                      {item.price} {item.pricePer ? `/ ${item.pricePer}` : ""}
+                    </div>
                   </div>
 
-                  {/* Details Form */}
+                  {/* Editable Fields */}
                   <div className="p-4 space-y-3">
                     <div>
                       <label className="text-[11px] text-[#8892B0] font-medium block mb-1">
-                        عنوان البطاقة:
+                        اسم الخدمة / الفندق / الطائرة:
                       </label>
                       <input
                         type="text"
-                        value={card.title}
+                        value={item.name}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setCards((prev) =>
-                            prev.map((c) => (c.id === card.id ? { ...c, title: val } : c))
+                          setCatalogItems((prev) =>
+                            prev.map((c) => (c.id === item.id ? { ...c, name: val } : c))
                           );
                         }}
                         className="w-full rounded-lg bg-[#181828] border border-white/[0.08] px-3 py-1.5 text-xs text-white focus:border-[#c9a84c] focus:outline-none"
@@ -386,57 +426,88 @@ export default function MobileAppAdminHub() {
 
                     <div>
                       <label className="text-[11px] text-[#8892B0] font-medium block mb-1">
-                        الوصف الفرعي:
+                        الموقع أو المواصفات:
                       </label>
                       <input
                         type="text"
-                        value={card.subtitle}
+                        value={item.subtitle}
                         onChange={(e) => {
                           const val = e.target.value;
-                          setCards((prev) =>
-                            prev.map((c) => (c.id === card.id ? { ...c, subtitle: val } : c))
+                          setCatalogItems((prev) =>
+                            prev.map((c) => (c.id === item.id ? { ...c, subtitle: val } : c))
                           );
                         }}
                         className="w-full rounded-lg bg-[#181828] border border-white/[0.08] px-3 py-1.5 text-xs text-[#CCD6F6] focus:border-[#c9a84c] focus:outline-none"
                       />
                     </div>
 
-                    <div>
-                      <label className="text-[11px] text-[#8892B0] font-medium block mb-1">
-                        السعر المعروض في التطبيق:
-                      </label>
-                      <input
-                        type="text"
-                        value={card.price || ""}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setCards((prev) =>
-                            prev.map((c) => (c.id === card.id ? { ...c, price: val } : c))
-                          );
-                        }}
-                        placeholder="مثال: $850 / night"
-                        className="w-full rounded-lg bg-[#181828] border border-white/[0.08] px-3 py-1.5 text-xs text-[#c9a84c] font-mono focus:border-[#c9a84c] focus:outline-none"
-                      />
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[11px] text-[#8892B0] font-medium block mb-1">
+                          السعر الرقمي:
+                        </label>
+                        <input
+                          type="number"
+                          value={item.priceNumeric}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setCatalogItems((prev) =>
+                              prev.map((c) =>
+                                c.id === item.id
+                                  ? {
+                                      ...c,
+                                      priceNumeric: val,
+                                      price: `$${val.toLocaleString()}`,
+                                    }
+                                  : c
+                              )
+                            );
+                          }}
+                          className="w-full rounded-lg bg-[#181828] border border-white/[0.08] px-2.5 py-1.5 text-xs text-[#c9a84c] font-bold focus:border-[#c9a84c] focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-[11px] text-[#8892B0] font-medium block mb-1">
+                          العملة:
+                        </label>
+                        <select
+                          value={item.currency}
+                          onChange={(e) => {
+                            const val = e.target.value as any;
+                            setCatalogItems((prev) =>
+                              prev.map((c) => (c.id === item.id ? { ...c, currency: val } : c))
+                            );
+                          }}
+                          className="w-full rounded-lg bg-[#181828] border border-white/[0.08] px-2 py-1.5 text-xs text-white focus:border-[#c9a84c] focus:outline-none"
+                        >
+                          <option value="USD">USD ($)</option>
+                          <option value="EUR">EUR (€)</option>
+                          <option value="EGP">EGP (ج.م)</option>
+                          <option value="AED">AED (د.إ)</option>
+                          <option value="SAR">SAR (ر.س)</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Upload action button */}
+                {/* Upload action button directly from device */}
                 <div className="p-4 pt-0">
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedCardForUpload(card.id);
+                      setSelectedItemForUpload(item.id);
                       fileInputRef.current?.click();
                     }}
-                    disabled={uploadingCardId === card.id}
+                    disabled={uploadingItemId === item.id}
                     className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[rgba(201,168,76,0.3)] bg-[rgba(201,168,76,0.08)] hover:bg-[rgba(201,168,76,0.18)] text-xs font-bold text-[#ecd58e] transition-all"
                   >
                     <UploadCloud className="w-4 h-4 text-[#c9a84c]" />
                     <span>
-                      {uploadingCardId === card.id
-                        ? "جاري رفع الصورة..."
-                        : "رفع صورة من جهازك"}
+                      {uploadingItemId === item.id
+                        ? "جاري رفع الصورة من جهازك..."
+                        : "رفع صورة من جهازك لهذا العنصر"}
                     </span>
                   </button>
                 </div>
@@ -446,134 +517,7 @@ export default function MobileAppAdminHub() {
         </div>
       )}
 
-      {/* ======================= TAB 2: PRICING ======================= */}
-      {activeTab === "pricing" && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-white">إدارة تسعير الخدمات الفاخرة للتطبيق</h2>
-              <p className="text-xs text-[#8892B0] mt-1">
-                تعديل الأسعار الأساسية، نسب الخصومات، والعملات المعتمدة داخل التطبيق.
-              </p>
-            </div>
-            <button
-              onClick={handleSavePricing}
-              disabled={saving}
-              className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#c9a84c] to-[#8b6914] text-[#07070a] font-bold text-sm hover:brightness-110 shadow-[0_4px_20px_rgba(201,168,76,0.3)] transition-all disabled:opacity-50"
-            >
-              <Save className="w-4 h-4" />
-              <span>{saving ? "جاري الحفظ..." : "حفظ الأسعار للتطبيق"}</span>
-            </button>
-          </div>
-
-          <div className="rounded-2xl border border-white/[0.08] bg-[#10101a] overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-xs">
-                <thead>
-                  <tr className="border-b border-white/[0.08] bg-[#141422] text-[#8892B0]">
-                    <th className="py-3.5 px-4 font-bold">الخدمة الفاخرة</th>
-                    <th className="py-3.5 px-4 font-bold">السعر الأساسي</th>
-                    <th className="py-3.5 px-4 font-bold">العملة</th>
-                    <th className="py-3.5 px-4 font-bold">الوحدة (لكل)</th>
-                    <th className="py-3.5 px-4 font-bold">خصم (%)</th>
-                    <th className="py-3.5 px-4 font-bold">حالة الخدمة</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/[0.05]">
-                  {pricingRules.map((rule) => (
-                    <tr key={rule.id} className="hover:bg-white/[0.02] transition-colors">
-                      <td className="py-3.5 px-4 font-medium text-white flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-[#c9a84c]" />
-                        <span>{rule.title}</span>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <input
-                          type="number"
-                          value={rule.basePrice}
-                          onChange={(e) => {
-                            const val = parseFloat(e.target.value) || 0;
-                            setPricingRules((prev) =>
-                              prev.map((r) => (r.id === rule.id ? { ...r, basePrice: val } : r))
-                            );
-                          }}
-                          className="w-28 rounded-lg bg-[#181828] border border-white/[0.1] px-2.5 py-1 text-xs text-[#c9a84c] font-bold focus:border-[#c9a84c] focus:outline-none"
-                        />
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <select
-                          value={rule.currency}
-                          onChange={(e) => {
-                            const val = e.target.value as any;
-                            setPricingRules((prev) =>
-                              prev.map((r) => (r.id === rule.id ? { ...r, currency: val } : r))
-                            );
-                          }}
-                          className="rounded-lg bg-[#181828] border border-white/[0.1] px-2.5 py-1 text-xs text-white focus:border-[#c9a84c] focus:outline-none"
-                        >
-                          <option value="USD">USD ($)</option>
-                          <option value="EUR">EUR (€)</option>
-                          <option value="EGP">EGP (ج.م)</option>
-                          <option value="AED">AED (د.إ)</option>
-                          <option value="SAR">SAR (ر.س)</option>
-                        </select>
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <input
-                          type="text"
-                          value={rule.unit}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            setPricingRules((prev) =>
-                              prev.map((r) => (r.id === rule.id ? { ...r, unit: val } : r))
-                            );
-                          }}
-                          className="w-24 rounded-lg bg-[#181828] border border-white/[0.1] px-2.5 py-1 text-xs text-[#CCD6F6] focus:border-[#c9a84c] focus:outline-none"
-                        />
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <input
-                          type="number"
-                          value={rule.discountPercent || 0}
-                          onChange={(e) => {
-                            const val = parseInt(e.target.value) || 0;
-                            setPricingRules((prev) =>
-                              prev.map((r) =>
-                                r.id === rule.id ? { ...r, discountPercent: val } : r
-                              )
-                            );
-                          }}
-                          className="w-16 rounded-lg bg-[#181828] border border-white/[0.1] px-2 py-1 text-xs text-emerald-400 focus:border-[#c9a84c] focus:outline-none"
-                        />
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setPricingRules((prev) =>
-                              prev.map((r) =>
-                                r.id === rule.id ? { ...r, isActive: !r.isActive } : r
-                              )
-                            );
-                          }}
-                          className={`px-3 py-1 rounded-full text-[11px] font-bold border ${
-                            rule.isActive
-                              ? "bg-emerald-500/10 text-emerald-300 border-emerald-500/30"
-                              : "bg-rose-500/10 text-rose-300 border-rose-500/30"
-                          }`}
-                        >
-                          {rule.isActive ? "نشط بالتطبيق" : "موقف مؤقتاً"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ======================= TAB 3: PAYMENTS & PAYPAL ======================= */}
+      {/* ======================= TAB 2: PAYMENTS & PAYPAL ======================= */}
       {activeTab === "payments" && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
@@ -781,7 +725,7 @@ export default function MobileAppAdminHub() {
         </div>
       )}
 
-      {/* ======================= TAB 4: PUSH NOTIFICATIONS ======================= */}
+      {/* ======================= TAB 3: PUSH NOTIFICATIONS ======================= */}
       {activeTab === "push" && (
         <div className="space-y-6">
           <div>
@@ -899,7 +843,7 @@ export default function MobileAppAdminHub() {
                       alt="Vanir Logo"
                       className="w-full h-full object-contain p-0.5"
                       onError={(e) => {
-                        (e.target as HTMLElement).style.display = 'none';
+                        (e.target as HTMLElement).style.display = "none";
                       }}
                     />
                   </div>
