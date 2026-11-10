@@ -18,6 +18,9 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { getFirebaseApp } from "./firebase-api";
 import { PRIORITY_SEO_BLOG_POSTS, type PriorityBlogPost } from "@shared/seo/priorityBlogPosts";
 
+export { PRIORITY_SEO_BLOG_POSTS };
+export type { PriorityBlogPost };
+
 const app = getFirebaseApp();
 export const db = getFirestore(app!);
 export const storage = getStorage(app!);
@@ -264,11 +267,22 @@ export async function bulkImportBlogPosts(
   return { count };
 }
 
-// 6. رفع صورة مقال مباشرة إلى Firebase Storage
+import { compressImageToDataUri } from "./siteSettingsApi";
+
+// 6. رفع صورة مقال مباشرة إلى Firebase Storage مع Fallback فوري للكوتا
 export async function uploadBlogImage(file: File): Promise<string> {
-  const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-  const filename = `blog_assets/${Date.now()}_${sanitizedName}`;
-  const fileRef = ref(storage, filename);
-  await uploadBytes(fileRef, file, { contentType: file.type });
-  return await getDownloadURL(fileRef);
+  try {
+    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const filename = `blog_assets/${Date.now()}_${sanitizedName}`;
+    const fileRef = ref(storage, filename);
+    await uploadBytes(fileRef, file, { contentType: file.type });
+    return await getDownloadURL(fileRef);
+  } catch (err: any) {
+    console.warn(`[blogApi] Blog storage upload failed (${err?.code || err?.message}), applying intelligent Data-URI fallback:`, err);
+    if (file.type.startsWith("image/")) {
+      const dataUri = await compressImageToDataUri(file);
+      return dataUri;
+    }
+    throw err;
+  }
 }

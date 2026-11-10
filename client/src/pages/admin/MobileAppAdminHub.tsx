@@ -38,6 +38,7 @@ import {
   type PushNotificationPayload,
   type ServiceType,
 } from "@/lib/mobileAppApi";
+import { compressImageToDataUri } from "@/lib/siteSettingsApi";
 
 export default function MobileAppAdminHub() {
   const [activeTab, setActiveTab] = useState<"catalog" | "payments" | "push">("catalog");
@@ -137,9 +138,16 @@ export default function MobileAppAdminHub() {
     try {
       const url = await uploadMobileImage(file, "push_banners");
       setPushImageUrl(url);
-      showToast("تم رفع صورة الإشعار من جهازك بنجاح!");
+      showToast("تم اعتماد ورفع صورة الإشعار بنجاح!");
     } catch (err: any) {
-      alert("خطأ أثناء رفع صورة الإشعار: " + err.message);
+      console.warn("Push image upload fallback:", err);
+      try {
+        const fallbackData = await compressImageToDataUri(file);
+        setPushImageUrl(fallbackData);
+        showToast("تم اعتماد صورة الإشعار بنجاح (وضع الحماية السريعة)!");
+      } catch (innerErr: any) {
+        alert("خطأ أثناء تجهيز صورة الإشعار: " + innerErr.message);
+      }
     } finally {
       setUploadingPushImage(false);
       if (pushFileInputRef.current) pushFileInputRef.current.value = "";

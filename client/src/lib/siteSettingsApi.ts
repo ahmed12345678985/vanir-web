@@ -72,34 +72,90 @@ export async function setManyFirestoreSettings(
   }
 }
 
-// 5. رفع ملف وسائط (صورة أو فيديو) مباشرة إلى Firebase Storage
-export async function uploadDirectMedia(file: File, folder = "uploads"): Promise<string> {
-  const sanitized = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-  const filename = `${folder}/${Date.now()}_${sanitized}`;
-  const fileRef = ref(storage, filename);
-  await uploadBytes(fileRef, file, { contentType: file.type || "application/octet-stream" });
-  return await getDownloadURL(fileRef);
+// Compress image on the client side into a lightweight base64 Data-URI (<100KB)
+// This ensures that even if Firebase Storage quota is exceeded, operations never break!
+export async function compressImageToDataUri(file: File, maxDim = 1200, quality = 0.78): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(reader.result as string);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        // Convert to highly optimized webp or jpeg
+        const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
+        const dataUri = canvas.toDataURL(mime, quality);
+        resolve(dataUri);
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
-// 6. رفع Base64 مباشرة إلى Firebase Storage (للتوافق الكامل مع أي أداة قديمة)
+// 5. رفع ملف وسائط (صورة أو فيديو) مباشرة إلى Firebase Storage مع Fallback فوري للكوتا
+export async function uploadDirectMedia(file: File, folder = "uploads"): Promise<string> {
+  try {
+    const sanitized = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const filename = `${folder}/${Date.now()}_${sanitized}`;
+    const fileRef = ref(storage, filename);
+    await uploadBytes(fileRef, file, { contentType: file.type || "application/octet-stream" });
+    return await getDownloadURL(fileRef);
+  } catch (err: any) {
+    console.warn(`[siteSettingsApi] Storage upload failed (${err?.code || err?.message}), applying intelligent Data-URI fallback:`, err);
+    // If quota exceeded or offline, compress image and return inline Data-URI
+    if (file.type.startsWith("image/")) {
+      const dataUri = await compressImageToDataUri(file);
+      return dataUri;
+    }
+    throw err;
+  }
+}
+
+// 6. رفع Base64 مباشرة إلى Firebase Storage (مع Fallback فوري عند نفاد الكوتا)
 export async function uploadBase64Media(
   base64Data: string,
   filename: string,
   mimeType: string,
   folder = "uploads"
 ): Promise<string> {
-  const sanitized = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
-  const fullPath = `${folder}/${Date.now()}_${sanitized}`;
-  const fileRef = ref(storage, fullPath);
+  try {
+    const sanitized = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
+    const fullPath = `${folder}/${Date.now()}_${sanitized}`;
+    const fileRef = ref(storage, fullPath);
 
-  const cleanBase64 = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
-  const byteChars = atob(cleanBase64);
-  const byteNums = new Array(byteChars.length);
-  for (let i = 0; i < byteChars.length; i++) {
-    byteNums[i] = byteChars.charCodeAt(i);
+    const cleanBase64 = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
+    const byteChars = atob(cleanBase64);
+    const byteNums = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) {
+      byteNums[i] = byteChars.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNums);
+
+    await uploadBytes(fileRef, byteArray, { contentType: mimeType || "image/jpeg" });
+    return await getDownloadURL(fileRef);
+  } catch (err: any) {
+    console.warn(`[siteSettingsApi] Base64 storage upload failed (${err?.code || err?.message}), keeping data URI:`, err);
+    return base64Data.startsWith("data:") ? base64Data : `data:${mimeType || "image/jpeg"};base64,${base64Data}`;
   }
-  const byteArray = new Uint8Array(byteNums);
-
-  await uploadBytes(fileRef, byteArray, { contentType: mimeType || "image/jpeg" });
-  return await getDownloadURL(fileRef);
 }

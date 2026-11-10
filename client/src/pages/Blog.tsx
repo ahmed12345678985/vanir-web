@@ -11,7 +11,7 @@ import PageMeta from "@/components/PageMeta";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import WatermarkImage from "@/components/WatermarkImage";
-import { listAllBlogPosts, type BlogPostItem } from "@/lib/blogApi";
+import { listAllBlogPosts, PRIORITY_SEO_BLOG_POSTS, type BlogPostItem } from "@/lib/blogApi";
 
 const CATEGORIES = ["All", "Destinations", "Experiences", "Travel Tips", "Culture"];
 
