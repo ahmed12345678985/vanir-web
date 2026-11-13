@@ -36,6 +36,9 @@ export interface BlogPostItem {
   tags: string[];
   authorName: string;
   status: "published" | "draft" | "archived";
+  metaTitle?: string;
+  metaDescription?: string;
+  focusKeyword?: string;
   readingTime?: number;
   viewCount?: number;
   createdAt?: any;
@@ -52,40 +55,68 @@ export function generateSlug(title: string): string {
     .slice(0, 100);
 }
 
+function isTestOrBrokenPost(id: string, slug: string, title: string, content: string): boolean {
+  const combined = `${id} ${slug} ${title} ${content}`.toLowerCase();
+  return (
+    id.startsWith("test_post_") ||
+    slug.startsWith("test-article-") ||
+    slug.startsWith("--") ||
+    combined.includes("blog saving verification") ||
+    combined.includes("this is test content") ||
+    combined.includes("محادثة مع gemini")
+  );
+}
+
 // 1. جلب كافة المقالات من Firestore مع الدمج التلقائي للمقالات الثابتة
 export async function listAllBlogPosts(): Promise<BlogPostItem[]> {
   try {
     const q = query(collection(db, "blog_posts"), orderBy("createdAt", "desc"));
     const snapshot = await getDocs(q);
-    const firestorePosts: BlogPostItem[] = snapshot.docs.map((docSnap) => {
+    const seenSlugs = new Set<string>();
+    const firestorePosts: BlogPostItem[] = [];
+
+    for (const docSnap of snapshot.docs) {
       const d = docSnap.data();
-      return {
+      const slug = d.slug || docSnap.id;
+      const title = d.title || "بدون عنوان";
+      const content = d.content || "";
+      if (isTestOrBrokenPost(docSnap.id, slug, title, content)) continue;
+      if (seenSlugs.has(slug)) continue;
+      seenSlugs.add(slug);
+
+      const rawImg = d.coverImageUrl || d.image || "/images/The_Nile_River_at_Cairo.jpg";
+      const coverImageUrl = rawImg === "/The_Nile_River_at_Cairo.jpg" ? "/images/The_Nile_River_at_Cairo.jpg" : rawImg;
+
+      firestorePosts.push({
         id: docSnap.id,
-        slug: d.slug || docSnap.id,
-        title: d.title || "بدون عنوان",
-        excerpt: d.excerpt || (d.content ? d.content.slice(0, 160) : ""),
-        content: d.content || "",
-        coverImageUrl: d.coverImageUrl || d.image || "/The_Nile_River_at_Cairo.jpg",
+        slug,
+        title,
+        excerpt: d.excerpt || (content ? content.slice(0, 160) : ""),
+        content,
+        coverImageUrl,
         category: d.category || "Luxury Travel",
         tags: Array.isArray(d.tags) ? d.tags : (typeof d.tags === "string" ? d.tags.split(",").map((s: string) => s.trim()) : ["Luxury"]),
         authorName: d.authorName || d.author || "Ahmed Roshdi",
         status: (d.status === "draft" || d.status === "archived") ? d.status : "published",
+        metaTitle: d.metaTitle,
+        metaDescription: d.metaDescription,
+        focusKeyword: d.focusKeyword,
+        readingTime: d.readingTime,
         createdAt: d.createdAt,
         updatedAt: d.updatedAt,
-      };
-    });
+      });
+    }
 
     // دمج المقالات الثابتة التي لم يتم إضافتها بعد في Firestore
-    const firestoreSlugs = new Set(firestorePosts.map((p) => p.slug));
     const staticPosts: BlogPostItem[] = PRIORITY_SEO_BLOG_POSTS
-      .filter((p) => !firestoreSlugs.has(p.slug))
+      .filter((p) => !seenSlugs.has(p.slug))
       .map((p) => ({
         id: String(p.id),
         slug: p.slug,
         title: p.title,
         excerpt: p.excerpt,
         content: p.content,
-        coverImageUrl: p.coverImageUrl || "/The_Nile_River_at_Cairo.jpg",
+        coverImageUrl: p.coverImageUrl === "/The_Nile_River_at_Cairo.jpg" ? "/images/The_Nile_River_at_Cairo.jpg" : (p.coverImageUrl || "/images/The_Nile_River_at_Cairo.jpg"),
         category: p.category,
         tags: p.tags,
         authorName: p.authorName,
@@ -105,7 +136,7 @@ export async function listAllBlogPosts(): Promise<BlogPostItem[]> {
       title: p.title,
       excerpt: p.excerpt,
       content: p.content,
-      coverImageUrl: p.coverImageUrl || "/The_Nile_River_at_Cairo.jpg",
+      coverImageUrl: p.coverImageUrl === "/The_Nile_River_at_Cairo.jpg" ? "/images/The_Nile_River_at_Cairo.jpg" : (p.coverImageUrl || "/images/The_Nile_River_at_Cairo.jpg"),
       category: p.category,
       tags: p.tags,
       authorName: p.authorName,
@@ -192,7 +223,7 @@ export async function saveBlogPost(
     slug: cleanSlug,
     content: post.content.trim(),
     excerpt,
-    coverImageUrl: post.coverImageUrl?.trim() || "/The_Nile_River_at_Cairo.jpg",
+    coverImageUrl: post.coverImageUrl?.trim() || "/images/The_Nile_River_at_Cairo.jpg",
     category: post.category?.trim() || "Luxury Travel",
     authorName: post.authorName?.trim() || "Ahmed Roshdi",
     tags: Array.isArray(post.tags) ? post.tags : ["Luxury"],
@@ -217,7 +248,7 @@ export async function deleteBlogPost(id: string | number): Promise<void> {
   await deleteDoc(doc(db, "blog_posts", String(id)));
 }
 
-// 5. استيراد مقالات جماعي (Bulk Import) مباشرة لـ Firestore
+// 5. استيراد وبناء مقالات جماعي (Bulk Import / SEO Batch) مباشرة لـ Firestore مع منع التكرار
 export async function bulkImportBlogPosts(
   posts: Array<{
     title: string;
@@ -228,39 +259,57 @@ export async function bulkImportBlogPosts(
     category?: string;
     authorName?: string;
     tags?: string[] | string;
+    metaTitle?: string;
+    metaDescription?: string;
+    focusKeyword?: string;
+    readingTime?: number;
     status?: "published" | "draft" | "archived";
   }>
 ): Promise<{ count: number }> {
   let count = 0;
-  for (const post of posts) {
+  const nowIso = new Date().toISOString();
+
+  for (let i = 0; i < posts.length; i++) {
+    const post = posts[i];
     if (!post.title || !post.title.trim()) continue;
-    const cleanSlug = post.slug?.trim() || generateSlug(post.title);
-    const content = post.content?.trim() || post.title.trim();
-    const excerpt = post.excerpt?.trim() || (content.length > 160 ? content.slice(0, 160) + "..." : content);
-    
-    let tagsList: string[] = ["Luxury", "Travel"];
+    const cleanTitle = post.title.trim();
+    const generated = generateSlug(cleanTitle);
+    const cleanSlug = (post.slug?.trim() || generated || `vanir-article-${Date.now()}-${i}`).replace(/^[-]+|[-]+$/g, "");
+    const content = post.content?.trim() || cleanTitle;
+    const excerpt = post.excerpt?.trim() || (content.length > 155 ? content.replace(/[#*_>`-]/g, "").slice(0, 155).trim() + "..." : content);
+    const words = content.split(/\s+/).filter(Boolean).length;
+    const readingTime = post.readingTime || Math.max(2, Math.ceil(words / 180));
+
+    let tagsList: string[] = ["Luxury Travel", "Vanir Group"];
     if (Array.isArray(post.tags)) {
-      tagsList = post.tags;
+      tagsList = post.tags.map((s) => String(s).trim()).filter(Boolean);
     } else if (typeof post.tags === "string") {
       tagsList = post.tags.split(",").map((s) => s.trim()).filter(Boolean);
     }
 
+    const rawCover = post.coverImageUrl?.trim() || "/images/The_Nile_River_at_Cairo.jpg";
+    const coverImageUrl = rawCover === "/The_Nile_River_at_Cairo.jpg" ? "/images/The_Nile_River_at_Cairo.jpg" : rawCover;
+
     const payload: Record<string, any> = {
-      title: post.title.trim(),
+      title: cleanTitle,
       slug: cleanSlug,
       content,
       excerpt,
-      coverImageUrl: post.coverImageUrl?.trim() || "/The_Nile_River_at_Cairo.jpg",
+      coverImageUrl,
       category: post.category?.trim() || "Luxury Travel",
       authorName: post.authorName?.trim() || "Ahmed Roshdi",
-      tags: tagsList,
+      tags: tagsList.length > 0 ? tagsList : ["Luxury Travel"],
+      metaTitle: (post.metaTitle?.trim() || `${cleanTitle} | VANIR GROUP`).slice(0, 70),
+      metaDescription: (post.metaDescription?.trim() || excerpt).slice(0, 160),
+      focusKeyword: post.focusKeyword?.trim() || tagsList[0] || cleanTitle.split(" ").slice(0, 4).join(" "),
+      readingTime,
       status: post.status === "draft" || post.status === "archived" ? post.status : "published",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: nowIso,
+      updatedAt: nowIso,
     };
 
-    const docRef = doc(collection(db, "blog_posts"));
-    await setDoc(docRef, payload);
+    const docRef = doc(db, "blog_posts", cleanSlug);
+    await setDoc(docRef, payload, { merge: true });
     count++;
   }
 

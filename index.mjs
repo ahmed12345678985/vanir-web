@@ -4291,7 +4291,7 @@ var blogRouter = router({
       }
       const existingSlugs = new Set(PRIORITY_SEO_BLOG_POSTS.map((p) => p.slug));
       const cleanedRaw = (rawPosts || []).filter(
-        (p) => p && p.slug && !existingSlugs.has(p.slug) && !String(p.slug).startsWith("--") && !String(p.content || "").includes("\u0645\u062D\u0627\u062F\u062B\u0629 \u0645\u0639 Gemini")
+        (p) => p && p.slug && !existingSlugs.has(p.slug) && !String(p.slug).startsWith("--") && !String(p.slug).startsWith("test-article-") && !String(p.content || "").includes("\u0645\u062D\u0627\u062F\u062B\u0629 \u0645\u0639 Gemini") && !String(p.content || "").includes("blog saving verification")
       );
       const combinedPosts = [...PRIORITY_SEO_BLOG_POSTS, ...cleanedRaw];
       let filtered = combinedPosts.filter(

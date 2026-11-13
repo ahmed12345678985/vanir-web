@@ -23,7 +23,9 @@ export default function BlogAdmin() {
   const [isOpen, setIsOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
   const [bulkInput, setBulkInput] = useState("");
-  const [bulkMode, setBulkMode] = useState<"json" | "csv">("json");
+  const [bulkMode, setBulkMode] = useState<"seo_batch" | "json" | "csv">("seo_batch");
+  const [seoCategory, setSeoCategory] = useState("Luxury Travel");
+  const [seoLang, setSeoLang] = useState<"ar" | "en">("ar");
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -156,7 +158,7 @@ export default function BlogAdmin() {
       content: "محتوى المقال الكامل هنا بالتفصيل عن تجربة الطيران الخاص وحجوزات كبار الشخصيات...",
       category: "Private Jet",
       authorName: "Ahmed Roshdi",
-      coverImageUrl: "/The_Nile_River_at_Cairo.jpg",
+      coverImageUrl: "/images/The_Nile_River_at_Cairo.jpg",
       tags: ["Private Jet", "Cairo", "Luxury"],
       status: "published"
     },
@@ -167,7 +169,7 @@ export default function BlogAdmin() {
       content: "تفاصيل الجزر الخاصة والمنتجعات الفاخرة التي توفر أقصى درجات الراحة والهدوء...",
       category: "Luxury Travel",
       authorName: "Ahmed Roshdi",
-      coverImageUrl: "/The_Nile_River_at_Cairo.jpg",
+      coverImageUrl: "/images/The_Nile_River_at_Cairo.jpg",
       tags: ["Private Island", "Maldives", "Luxury"],
       status: "published"
     }
@@ -183,16 +185,116 @@ export default function BlogAdmin() {
     downloadAnchor.remove();
   };
 
+  const pickTopicCoverImage = (topic: string): string => {
+    const t = topic.toLowerCase();
+    if (/jet|flight|aviation|طائر|طيران/.test(t)) return "/images/Luxury Private Jet Interior with Warm Ambient Elegance ✨.jpeg";
+    if (/yacht|cruise|nile|يخت|نيل|بحر/.test(t)) return "/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg";
+    if (/maldives|island|جزر|مالديف/.test(t)) return "/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg";
+    if (/hotel|resort|فندق|منتجع/.test(t)) return "/images/Four-Seasons-Hualalai-1.jpeg";
+    return "/images/The_Nile_River_at_Cairo.jpg";
+  };
+
+  const buildSeoBatchArticles = (rawTopics: string, category: string, lang: "ar" | "en") => {
+    const lines = rawTopics
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+
+    return lines.map((topic, idx) => {
+      const coverImageUrl = pickTopicCoverImage(topic);
+      const slugBase = generateSlug(topic) || `vanir-seo-guide-${Date.now()}-${idx + 1}`;
+      if (lang === "ar") {
+        const title = topic;
+        const excerpt = `دليل VANIR GROUP الشامل حول ${topic} — برامج VIP مخصصة، طيران خاص، وإقامة فاخرة 5 نجوم بأعلى معايير الخصوصية والاحترافية.`;
+        const content = [
+          `# ${topic}`,
+          "",
+          `تُعد تجربة **${topic}** واحدة من أرقى خدمات السفر السياحي الفاخر التي تقدمها **VANIR GROUP** لعملائها من كبار الشخصيات، العائلات الملكية، ورجال الأعمال حول العالم.`,
+          "",
+          `## لماذا تختار VANIR GROUP في ${topic}؟`,
+          `- **خصوصية تامة وبروتوكول VIP:** تنسيق كامل من لحظة الوصول عبر صالات كبار الشخصيات وخدمات Fast Track.`,
+          `- **طيران خاص وإقامات فاخرة:** توفير طائرات خاصة (Private Jet Charter) وأجنحة رئاسية في أفخم المنتجعات العالمية.`,
+          `- **فريق كونسيرج على مدار 24/7:** متابعة مستمرة لكل تفاصيل الرحلة باللغات العربية والإنجليزية والألمانية.`,
+          "",
+          `## أبرز المزايا والتفاصيل الحصرية`,
+          `عند التخطيط لـ **${topic}**، نحرص في VANIR GROUP على تصميم جدول رحلة مخصص بالكامل يناسب تطلعاتك، بدءاً من النقل بسيارات الليموزين الفاخرة وصولاً إلى الجولات الخاصة بعد ساعات العمل الرسمية.`,
+          "",
+          `## الأسئلة الشائعة (FAQ)`,
+          `### كيف يمكنني حجز باقة ${topic} عبر VANIR GROUP؟`,
+          `يمكنك الحجز مباشرة عبر صفحة الحجز الإلكتروني في الموقع أو التواصل مع مستشار السفر الخاص بك لتجهيز عرض مخصص خلال دقائق.`,
+          "",
+          `### هل تشمل الخدمة الطيران الخاص والاستقبال بالمطار؟`,
+          `نعم، نوفر خدمات الطيران الخاص، الاستقبال من باب الطائرة (Airport Fast Track)، والانتقالات الفاخرة.`,
+        ].join("\n");
+
+        return {
+          title,
+          slug: slugBase,
+          excerpt,
+          content,
+          category,
+          authorName: "Ahmed Roshdi",
+          coverImageUrl,
+          tags: [topic, category, "VANIR GROUP", "VIP Travel"],
+          metaTitle: `${title} | VANIR GROUP`,
+          metaDescription: excerpt.slice(0, 155),
+          focusKeyword: topic,
+          status: "published" as const,
+        };
+      } else {
+        const title = topic;
+        const excerpt = `Complete VANIR GROUP luxury guide to ${topic} — private aviation, VIP concierge protocol, and bespoke 5-star sanctuary experiences.`;
+        const content = [
+          `# ${topic}`,
+          "",
+          `Discover **${topic}** with **VANIR GROUP**, curated exclusively for discerning travelers, executives, and royal delegations seeking effortless luxury and total discretion.`,
+          "",
+          `## Why Choose VANIR GROUP for ${topic}?`,
+          `- **Sovereign VIP Protocol:** Seamless tarmac transfers, private terminal Fast Track, and dedicated diplomatic coordination.`,
+          `- **Private Aviation & Buyouts:** On-demand Gulfstream & Bombardier charters paired with ultra-luxury suite and villa buyouts.`,
+          `- **24/7 Multilingual Concierge Desk:** Real-time itinerary execution in English, Arabic, and German.`,
+          "",
+          `## Tailored Highlights & Execution`,
+          `Every **${topic}** itinerary is custom-engineered from the ground up — combining insider access, after-hours cultural openings, and chauffeured executive fleets.`,
+          "",
+          `## Frequently Asked Questions (FAQ)`,
+          `### How do I book ${topic} with VANIR GROUP?`,
+          `Reserve directly through our online Booking Desk or request a bespoke proposal from our Executive Advisory Team.`,
+          "",
+          `### Are private jet charters and VIP airport transfers included?`,
+          `Yes. Every journey can be configured with private jet charters, VIP fast-track clearance, and chauffeured transfers.`,
+        ].join("\n");
+
+        return {
+          title,
+          slug: slugBase,
+          excerpt,
+          content,
+          category,
+          authorName: "Ahmed Roshdi",
+          coverImageUrl,
+          tags: [topic, category, "VANIR GROUP", "Luxury Travel"],
+          metaTitle: `${title} | VANIR GROUP`,
+          metaDescription: excerpt.slice(0, 155),
+          focusKeyword: topic,
+          status: "published" as const,
+        };
+      }
+    });
+  };
+
   const handleBulkSubmit = async () => {
     if (!bulkInput.trim()) {
-      toast.error("يرجى إدخال المقالات أو رفع الملف");
+      toast.error("يرجى إدخال المواضيع أو المقالات أو رفع الملف");
       return;
     }
 
     setIsImporting(true);
     try {
       let parsedArticles: any[] = [];
-      if (bulkMode === "json") {
+      if (bulkMode === "seo_batch") {
+        parsedArticles = buildSeoBatchArticles(bulkInput, seoCategory, seoLang);
+      } else if (bulkMode === "json") {
         const parsed = JSON.parse(bulkInput);
         if (Array.isArray(parsed)) {
           parsedArticles = parsed;
@@ -221,7 +323,7 @@ export default function BlogAdmin() {
               excerpt: cols[2] || content.slice(0, 140),
               category: cols[3] || "Luxury Travel",
               authorName: cols[4] || "Ahmed Roshdi",
-              coverImageUrl: cols[5] || "/The_Nile_River_at_Cairo.jpg",
+              coverImageUrl: cols[5] || "/images/The_Nile_River_at_Cairo.jpg",
               status: "published"
             });
           }
@@ -242,8 +344,11 @@ export default function BlogAdmin() {
         content: String(art.content || art.body || "محتوى المقالة"),
         category: String(art.category || "Luxury Travel"),
         authorName: String(art.authorName || art.author || "Ahmed Roshdi"),
-        coverImageUrl: String(art.coverImageUrl || art.imageUrl || art.image || "/The_Nile_River_at_Cairo.jpg"),
+        coverImageUrl: String(art.coverImageUrl || art.imageUrl || art.image || "/images/The_Nile_River_at_Cairo.jpg"),
         tags: Array.isArray(art.tags) ? art.tags : (typeof art.tags === "string" ? art.tags.split(",").map((t: string) => t.trim()) : ["Luxury"]),
+        metaTitle: art.metaTitle ? String(art.metaTitle) : undefined,
+        metaDescription: art.metaDescription ? String(art.metaDescription) : undefined,
+        focusKeyword: art.focusKeyword ? String(art.focusKeyword) : undefined,
         status: (art.status === "draft" || art.status === "archived") ? art.status : ("published" as const),
       }));
 
@@ -670,11 +775,23 @@ export default function BlogAdmin() {
               </label>
             </div>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <label className="block text-xs font-medium text-white/80">
-                أو الصق محتوى المقالات يدوياً:
+                اختر طريقة البناء / الاستيراد:
               </label>
-              <div className="flex gap-1 text-xs">
+              <div className="flex flex-wrap gap-1 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setBulkMode("seo_batch")}
+                  className={`px-3 py-1 rounded text-xs transition-colors flex items-center gap-1 ${
+                    bulkMode === "seo_batch"
+                      ? "bg-[var(--theme-primary)] text-[var(--theme-surface)] font-semibold"
+                      : "bg-white/5 text-white/60 hover:text-white"
+                  }`}
+                >
+                  <Sparkles size={12} />
+                  بناء مقالات SEO تلقائياً
+                </button>
                 <button
                   type="button"
                   onClick={() => setBulkMode("json")}
@@ -700,16 +817,76 @@ export default function BlogAdmin() {
               </div>
             </div>
 
+            {bulkMode === "seo_batch" && (
+              <div className="p-3 rounded-lg bg-[var(--theme-primary)]/10 border border-[var(--theme-primary)]/25 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs text-white/80">
+                    اكتب كل عنوان/كلمة بحثية في سطر مستقل وسنبني لكل سطر مقالة كاملة متوافقة مع SEO جوجل (Meta Title + Description + FAQ + صورة مناسبة):
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      setBulkInput(
+                        seoLang === "ar"
+                          ? [
+                              "أفضل برامج السياحة الفاخرة في القاهرة والأقصر وأسوان 2026",
+                              "حجز طائرة خاصة VIP من دبي والرياض إلى القاهرة",
+                              "رحلات اليخوت الفاخرة في البحر الأحمر والجونة وشرم الشيخ",
+                              "خدمة الاستقبال VIP في مطار القاهرة الدولي Fast Track",
+                              "أفخم فنادق ومنتجعات 5 نجوم في مصر والشرق الأوسط",
+                            ].join("\n")
+                          : [
+                              "Best Luxury Private Egypt Tours Cairo Luxor Aswan 2026",
+                              "Private Jet Charter from Dubai and Riyadh to Cairo",
+                              "Red Sea Superyacht Charter Hurghada and El Gouna",
+                              "Cairo International Airport VIP Fast Track Meet and Assist",
+                              "Top 5-Star Luxury Hotels and Nile Dahabiya Cruises in Egypt",
+                            ].join("\n")
+                      )
+                    }
+                    className="h-7 text-[11px] bg-white/10 border-white/20 text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/20"
+                  >
+                    تعبئة مواضيع عالية البحث في جوجل
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    value={seoCategory}
+                    onChange={(e) => setSeoCategory(e.target.value)}
+                    className="bg-[#1a1a1a] border border-white/15 rounded px-2.5 py-1.5 text-xs text-white"
+                  >
+                    <option value="Luxury Travel">Luxury Travel</option>
+                    <option value="Private Jet">Private Jet</option>
+                    <option value="Egypt VIP">Egypt VIP</option>
+                    <option value="Yacht Charter">Yacht Charter</option>
+                    <option value="Destinations">Destinations</option>
+                  </select>
+                  <select
+                    value={seoLang}
+                    onChange={(e) => setSeoLang(e.target.value as "ar" | "en")}
+                    className="bg-[#1a1a1a] border border-white/15 rounded px-2.5 py-1.5 text-xs text-white"
+                  >
+                    <option value="ar">العربية (Arabic SEO)</option>
+                    <option value="en">English (Global SEO)</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
             <Textarea
               value={bulkInput}
               onChange={(e) => setBulkInput(e.target.value)}
               placeholder={
-                bulkMode === "json"
-                  ? '[\n  {\n    "title": "عنوان المقال الأول",\n    "content": "محتوى المقال الكامل...",\n    "category": "Luxury Travel",\n    "coverImageUrl": "/The_Nile_River_at_Cairo.jpg"\n  }\n]'
-                  : 'Title,Content,Excerpt,Category,Author,Image\n"عنوان المقال الأول","المحتوى الكامل هنا...","ملخص المقال","Luxury Travel","Ahmed Roshdi","/The_Nile_River_at_Cairo.jpg"'
+                bulkMode === "seo_batch"
+                  ? "اكتب عنوان كل مقالة في سطر جديد...\nمثال:\nحجز طائرة خاصة من الرياض إلى القاهرة\nأفضل فنادق النيل الفاخرة في القاهرة\nجولة VIP خاصة في الأهرامات والمتحف المصري الكبير"
+                  : bulkMode === "json"
+                  ? '[\n  {\n    "title": "عنوان المقال الأول",\n    "content": "محتوى المقال الكامل...",\n    "category": "Luxury Travel",\n    "coverImageUrl": "/images/The_Nile_River_at_Cairo.jpg"\n  }\n]'
+                  : 'Title,Content,Excerpt,Category,Author,Image\n"عنوان المقال الأول","المحتوى الكامل هنا...","ملخص المقال","Luxury Travel","Ahmed Roshdi","/images/The_Nile_River_at_Cairo.jpg"'
               }
               rows={9}
-              dir="ltr"
+              dir={bulkMode === "seo_batch" && seoLang === "ar" ? "rtl" : "ltr"}
               className="bg-[#1a1a1a] border-white/10 text-white font-mono text-xs leading-relaxed"
             />
 

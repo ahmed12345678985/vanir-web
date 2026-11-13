@@ -108,7 +108,9 @@ export const blogRouter = router({
             p.slug &&
             !existingSlugs.has(p.slug) &&
             !String(p.slug).startsWith("--") &&
-            !String(p.content || "").includes("محادثة مع Gemini")
+            !String(p.slug).startsWith("test-article-") &&
+            !String(p.content || "").includes("محادثة مع Gemini") &&
+            !String(p.content || "").includes("blog saving verification")
         );
         const combinedPosts = [...PRIORITY_SEO_BLOG_POSTS, ...cleanedRaw];
 
