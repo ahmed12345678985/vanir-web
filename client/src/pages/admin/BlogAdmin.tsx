@@ -185,13 +185,49 @@ export default function BlogAdmin() {
     downloadAnchor.remove();
   };
 
-  const pickTopicCoverImage = (topic: string): string => {
+  const pickTopicCoverImage = (topic: string, idx = 0): string => {
     const t = topic.toLowerCase();
-    if (/jet|flight|aviation|طائر|طيران/.test(t)) return "/images/Luxury Private Jet Interior with Warm Ambient Elegance ✨.jpeg";
-    if (/yacht|cruise|nile|يخت|نيل|بحر/.test(t)) return "/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg";
-    if (/maldives|island|جزر|مالديف/.test(t)) return "/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg";
-    if (/hotel|resort|فندق|منتجع/.test(t)) return "/images/Four-Seasons-Hualalai-1.jpeg";
-    return "/images/The_Nile_River_at_Cairo.jpg";
+    // Specific destinations
+    if (/dubai|دبي|إمارات|uae/.test(t)) return "/images/final_dubai_post.png";
+    if (/cairo|قاهر|أهرام|pyramids|giza|جيزة/.test(t)) return "/images/final_cairo_post.png";
+    if (/luxor|أقصر|الأقصر/.test(t)) return "/images/final_luxor_post.png";
+    if (/aswan|أسوان/.test(t)) return "/images/final_aswan_post.png";
+    if (/alexandria|إسكندرية|اسكندرية/.test(t)) return "/images/final_alexandria_post.png";
+    if (/sharm|شرم/.test(t)) return "/images/final_sharm_post.png";
+    if (/dahab|دهب/.test(t)) return "/images/final_dahab_post.png";
+    if (/siwa|سيوة/.test(t)) return "/images/final_siwa_post.png";
+    if (/marsa|مرسى علم/.test(t)) return "/images/final_marsa_alam_post.png";
+    if (/london|لندن/.test(t)) return "/images/final_london_post.png";
+    if (/paris|باريس/.test(t)) return "/images/final_paris_post.png";
+    if (/rome|روما|italy|إيطاليا/.test(t)) return "/images/final_rome_post.png";
+    if (/istanbul|إسطنبول|اسطنبول|تركيا/.test(t)) return "/images/final_istanbul_post.png";
+    if (/santorini|سانتوريني|يونان|greece/.test(t)) return "/images/final_santorini_post.png";
+    if (/tokyo|طوكيو|japan|يابان/.test(t)) return "/images/final_tokyo_post.png";
+    if (/bali|بالي/.test(t)) return "/images/final_bali_post.png";
+    if (/malaysia|ماليزيا/.test(t)) return "/images/final_malaysia_post.png";
+    if (/maldives|island|جزر|مالديف/.test(t)) return "/images/final_maldives_post.png";
+
+    // Travel themes & services
+    if (/jet|flight|aviation|airport|ticket|طائر|طيران|تذاكر|مطار/.test(t)) return "/images/hero_jet_luxury.jpg";
+    if (/yacht|cruise|nile|sea|يخت|نيل|بحر|كروز/.test(t)) return "/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg";
+    if (/hotel|resort|stay|villa|فندق|فنادق|منتجع|إقامة|فيلا/.test(t)) return "/images/Four-Seasons-Hualalai-1.jpeg";
+    if (/ai|smart|tech|future|ذكاء|ذكية|تقني|مستقبل/.test(t)) return "/images/vanir_world_5.png";
+    if (/quiet|escape|calm|crowd|nature|ضوضاء|زحام|هدوء|استجمام|طبيعة/.test(t)) return "/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg";
+    if (/shop|luxury|brand|تسوق|فاخر/.test(t)) return "/images/vanir_shopping_1.png";
+    if (/culture|museum|history|متحف|تاريخ|تراث|ثقاف/.test(t)) return "/images/vanir_culture_1.png";
+    if (/adventure|safari|desert|مغامر|سفاري|صحراء/.test(t)) return "/images/vanir_adventure_4.png";
+
+    // Curated fallback rotation so each article gets a distinct, verified image
+    const fallbackPool = [
+      "/images/vanir_world_4.png",
+      "/images/FS_Punta_Mita.jpg",
+      "/images/Regent-Seven-Seas-Voyager-Horizon-Lounge.jpg",
+      "/images/four-seasons-lanai.jpeg",
+      "/images/vanir_culture_3.png",
+      "/images/The_Nile_River_at_Cairo.jpg",
+      "/images/vanir_adventure_5.png",
+    ];
+    return fallbackPool[idx % fallbackPool.length];
   };
 
   const buildSeoBatchArticles = (rawTopics: string, category: string, lang: "ar" | "en") => {
@@ -223,7 +259,7 @@ export default function BlogAdmin() {
     }
 
     return lines.map(({ title, seedText }, idx) => {
-      const coverImageUrl = pickTopicCoverImage(title);
+      const coverImageUrl = pickTopicCoverImage(seedText || title, idx);
       const slugBase = generateSlug(title) || `vanir-seo-guide-${Date.now()}-${idx + 1}`;
       if (lang === "ar") {
         const excerpt = `دليل VANIR GROUP الشامل حول ${title} — برامج VIP مخصصة، طيران خاص، وإقامة فاخرة 5 نجوم بأعلى معايير الخصوصية والاحترافية.`.slice(0, 280);
@@ -500,11 +536,15 @@ export default function BlogAdmin() {
                   <TableCell>
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/5 border border-white/10">
                       <img
-                        src={article.coverImageUrl || "/The_Nile_River_at_Cairo.jpg"}
+                        src={article.coverImageUrl || "/images/vanir_world_4.png"}
                         alt={article.title}
                         className="w-full h-full object-cover"
                         onError={(e) => {
-                          (e.target as HTMLElement).style.display = "none";
+                          const img = e.currentTarget;
+                          if (!img.dataset.fallbackApplied) {
+                            img.dataset.fallbackApplied = "1";
+                            img.src = "/images/vanir_world_4.png";
+                          }
                         }}
                       />
                     </div>
