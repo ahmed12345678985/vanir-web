@@ -158,14 +158,66 @@ export async function compressImageToDataUri(file: File, targetMaxDim = 800, sta
   });
 }
 
+async function withTimeout<T>(promise: Promise<T>, ms = 4500): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("Storage upload timeout")), ms)
+    ),
+  ]);
+}
+
+async function compressDataUri(
+  dataUri: string,
+  targetMaxDim = 800,
+  startQuality = 0.65,
+  maxBytes = 55000
+): Promise<string> {
+  if (dataUri.length <= maxBytes) return dataUri;
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width;
+      let h = img.height;
+      let maxDim = targetMaxDim;
+      let quality = startQuality;
+      let attempt = 0;
+
+      const tryCompress = (): string => {
+        const scale = Math.min(1, maxDim / Math.max(w, h));
+        const cw = Math.max(1, Math.round(w * scale));
+        const ch = Math.max(1, Math.round(h * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return dataUri;
+        ctx.drawImage(img, 0, 0, cw, ch);
+        return canvas.toDataURL("image/jpeg", quality);
+      };
+
+      let result = tryCompress();
+      while (result.length > maxBytes && attempt < 6) {
+        attempt++;
+        quality = Math.max(0.2, quality - 0.12);
+        maxDim = Math.max(320, Math.round(maxDim * 0.78));
+        result = tryCompress();
+      }
+      resolve(result);
+    };
+    img.onerror = () => resolve(dataUri);
+    img.src = dataUri;
+  });
+}
+
 // 5. رفع ملف وسائط (صورة أو فيديو) مباشرة إلى Firebase Storage مع Fallback فوري للكوتا
 export async function uploadDirectMedia(file: File, folder = "uploads"): Promise<string> {
   try {
     const sanitized = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
     const filename = `${folder}/${Date.now()}_${sanitized}`;
     const fileRef = ref(storage, filename);
-    await uploadBytes(fileRef, file, { contentType: file.type || "application/octet-stream" });
-    return await getDownloadURL(fileRef);
+    await withTimeout(uploadBytes(fileRef, file, { contentType: file.type || "application/octet-stream" }));
+    return await withTimeout(getDownloadURL(fileRef));
   } catch (err: any) {
     console.warn(`[siteSettingsApi] Storage upload failed (${err?.code || err?.message}), applying intelligent Data-URI fallback:`, err);
     // If quota exceeded or offline, compress image and return inline Data-URI
@@ -182,13 +234,17 @@ export async function uploadDirectMedia(file: File, folder = "uploads"): Promise
   }
 }
 
-// 6. رفع Base64 مباشرة إلى Firebase Storage (مع Fallback فوري عند نفاد الكوتا)
+// 6. رفع Base64 مباشرة إلى Firebase Storage (مع Fallback فوري عند نفاد الكوتا وضغط تلقائي)
 export async function uploadBase64Media(
   base64Data: string,
   filename: string,
   mimeType: string,
   folder = "uploads"
 ): Promise<string> {
+  const fullDataUri = base64Data.startsWith("data:")
+    ? base64Data
+    : `data:${mimeType || "image/jpeg"};base64,${base64Data}`;
+
   try {
     const sanitized = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
     const fullPath = `${folder}/${Date.now()}_${sanitized}`;
@@ -202,10 +258,13 @@ export async function uploadBase64Media(
     }
     const byteArray = new Uint8Array(byteNums);
 
-    await uploadBytes(fileRef, byteArray, { contentType: mimeType || "image/jpeg" });
-    return await getDownloadURL(fileRef);
+    await withTimeout(uploadBytes(fileRef, byteArray, { contentType: mimeType || "image/jpeg" }));
+    return await withTimeout(getDownloadURL(fileRef));
   } catch (err: any) {
-    console.warn(`[siteSettingsApi] Base64 storage upload failed (${err?.code || err?.message}), keeping data URI:`, err);
-    return base64Data.startsWith("data:") ? base64Data : `data:${mimeType || "image/jpeg"};base64,${base64Data}`;
+    console.warn(`[siteSettingsApi] Base64 storage upload failed (${err?.code || err?.message}), compressing data URI:`, err);
+    if (!mimeType || mimeType.startsWith("image/") || fullDataUri.startsWith("data:image/")) {
+      return await compressDataUri(fullDataUri);
+    }
+    return fullDataUri;
   }
 }

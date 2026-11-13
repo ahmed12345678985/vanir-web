@@ -14,13 +14,7 @@ import App from "./App";
 import { getFirebaseAuth } from "@/lib/firebase-api";
 import { installGlobalImageErrorHandler } from "@/lib/imageFallback";
 import { ThemeColorsProvider } from "./contexts/ThemeColorsProvider";
-import {
-  getFirestoreSetting,
-  setFirestoreSetting,
-  setManyFirestoreSettings,
-  getFirestoreSettingsByCategory,
-  uploadBase64Media,
-} from "./lib/siteSettingsApi";
+import { executeTrpcFirestoreFallback } from "./lib/trpcFirestoreFallback";
 import "./index.css";
 
 // Ensure dark theme is always applied
@@ -110,115 +104,77 @@ const trpcClient = trpc.createClient({
         const contentType = res.headers.get("content-type") || "";
         const isHtmlFallback = contentType.includes("text/html");
         const isNonJson = !contentType.includes("application/json");
-        const isSiteSettingsRequest =
-          inputUrl.includes("siteSettings.") || inputUrl.includes("gallery.uploadImage");
 
         // إذا كان الموقع منشوراً كصفحة ساكنة (Cloudflare Pages) والـ API غير متاح (404/405 أو إرجاع HTML من SPA router)
-        // نعترض طلبات gallery.uploadImage و siteSettings وننفذها مباشرة وبكل ثقة عبر Firebase Firestore
-        if (!res.ok || res.status === 404 || res.status === 405 || isHtmlFallback || (isSiteSettingsRequest && isNonJson)) {
-          // 1. اعتراض رفع الصور gallery.uploadImage
-          if (inputUrl.includes("gallery.uploadImage") && init?.body) {
-            try {
-              const bodyStr = typeof init.body === "string" ? init.body : "";
-              const parsed = JSON.parse(bodyStr);
-              const dataPayload = parsed["0"]?.json || parsed.json || parsed;
-              const { fileData, filename, mimeType } = dataPayload;
-              if (fileData) {
-                const downloadUrl = await uploadBase64Media(
-                  fileData,
-                  filename || `upload_${Date.now()}`,
-                  mimeType || "image/jpeg",
-                  "gallery"
-                );
-                return new Response(
-                  JSON.stringify([{ result: { data: { json: { url: downloadUrl, fileKey: filename } } } }]),
-                  { status: 200, headers: { "Content-Type": "application/json" } }
-                );
-              }
-            } catch (err) {
-              console.error("[tRPC Interceptor] gallery.uploadImage error:", err);
-            }
-          }
-
-          // 2. اعتراض حفظ الإعدادات siteSettings.set
-          if (inputUrl.includes("siteSettings.set") && !inputUrl.includes("siteSettings.setMany") && init?.body) {
-            try {
-              const bodyStr = typeof init.body === "string" ? init.body : "";
-              const parsed = JSON.parse(bodyStr);
-              const dataPayload = parsed["0"]?.json || parsed.json || parsed;
-              const { category, key, value } = dataPayload;
-              if (category && key) {
-                await setFirestoreSetting(category, key, value ?? "");
-                return new Response(
-                  JSON.stringify([{ result: { data: { json: { success: true } } } }]),
-                  { status: 200, headers: { "Content-Type": "application/json" } }
-                );
-              }
-            } catch (err) {
-              console.error("[tRPC Interceptor] siteSettings.set error:", err);
-            }
-          }
-
-          // 2b. اعتراض حفظ عدة إعدادات siteSettings.setMany
-          if (inputUrl.includes("siteSettings.setMany") && init?.body) {
-            try {
-              const bodyStr = typeof init.body === "string" ? init.body : "";
-              const parsed = JSON.parse(bodyStr);
-              const dataPayload = parsed["0"]?.json || parsed.json || parsed;
-              const items = dataPayload.items || dataPayload;
-              if (Array.isArray(items)) {
-                await setManyFirestoreSettings(items);
-                return new Response(
-                  JSON.stringify([{ result: { data: { json: { success: true } } } }]),
-                  { status: 200, headers: { "Content-Type": "application/json" } }
-                );
-              }
-            } catch (err) {
-              console.error("[tRPC Interceptor] siteSettings.setMany error:", err);
-            }
-          }
-
-          // 3. اعتراض جلب إعداد واحد siteSettings.get
-          if (inputUrl.includes("siteSettings.get") && !inputUrl.includes("siteSettings.getByCategory") && !inputUrl.includes("siteSettings.getPublicCategory")) {
+        // نعترض جميع طلبات tRPC (المجمّعة batch أو المفردة) وننفذها مباشرة عبر Firebase Firestore
+        if (!res.ok || res.status === 404 || res.status === 405 || isHtmlFallback || isNonJson) {
+          if (inputUrl.includes("/api/trpc/")) {
             try {
               const urlObj = new URL(inputUrl, window.location.origin);
-              const inputParam = urlObj.searchParams.get("input");
-              if (inputParam) {
-                const parsed = JSON.parse(inputParam);
-                const queryPayload = parsed["0"]?.json || parsed.json || parsed;
-                const { category, key } = queryPayload;
-                if (category && key) {
-                  const val = await getFirestoreSetting(category, key);
-                  return new Response(
-                    JSON.stringify([{ result: { data: { json: val } } }]),
-                    { status: 200, headers: { "Content-Type": "application/json" } }
-                  );
-                }
-              }
-            } catch (err) {
-              console.error("[tRPC Interceptor] siteSettings.get error:", err);
-            }
-          }
+              const procPath = urlObj.pathname.replace(/^.*\/api\/trpc\//, "");
+              const procedures = procPath.split(",").filter(Boolean);
+              const isBatch = urlObj.searchParams.get("batch") === "1" || procedures.length > 1;
 
-          // 4. اعتراض جلب إعدادات فئة siteSettings.getByCategory
-          if (inputUrl.includes("siteSettings.getByCategory") || inputUrl.includes("siteSettings.getPublicCategory")) {
-            try {
-              const urlObj = new URL(inputUrl, window.location.origin);
-              const inputParam = urlObj.searchParams.get("input");
-              if (inputParam) {
-                const parsed = JSON.parse(inputParam);
-                const queryPayload = parsed["0"]?.json || parsed.json || parsed;
-                const { category } = queryPayload;
-                if (category) {
-                  const val = await getFirestoreSettingsByCategory(category);
-                  return new Response(
-                    JSON.stringify([{ result: { data: { json: val } } }]),
-                    { status: 200, headers: { "Content-Type": "application/json" } }
-                  );
+              let parsedInput: any = {};
+              if (init?.body && typeof init.body === "string") {
+                try {
+                  parsedInput = JSON.parse(init.body);
+                } catch {
+                  parsedInput = {};
+                }
+              } else {
+                const inputParam = urlObj.searchParams.get("input");
+                if (inputParam) {
+                  try {
+                    parsedInput = JSON.parse(inputParam);
+                  } catch {
+                    parsedInput = {};
+                  }
                 }
               }
+
+              const results = await Promise.all(
+                procedures.map(async (proc, idx) => {
+                  const rawEntry =
+                    parsedInput && typeof parsedInput === "object" && String(idx) in parsedInput
+                      ? parsedInput[String(idx)]
+                      : parsedInput;
+                  const payload = rawEntry?.json !== undefined ? rawEntry.json : rawEntry;
+
+                  try {
+                    const out = await executeTrpcFirestoreFallback(proc, payload);
+                    if (out.handled) {
+                      return { result: { data: { json: out.data } } };
+                    }
+                    return { result: { data: { json: null } } };
+                  } catch (procErr: any) {
+                    console.error(`[tRPC Firestore Fallback] ${proc} error:`, procErr);
+                    return {
+                      error: {
+                        json: {
+                          message: procErr?.message || `Error in ${proc}`,
+                          code: -32603,
+                          data: {
+                            code: "INTERNAL_SERVER_ERROR",
+                            httpStatus: 500,
+                            path: proc,
+                          },
+                        },
+                      },
+                    };
+                  }
+                })
+              );
+
+              return new Response(
+                JSON.stringify(isBatch ? results : results[0] ?? { result: { data: { json: null } } }),
+                {
+                  status: 200,
+                  headers: { "Content-Type": "application/json" },
+                }
+              );
             } catch (err) {
-              console.error("[tRPC Interceptor] siteSettings.getByCategory error:", err);
+              console.error("[tRPC Interceptor] batch dispatch error:", err);
             }
           }
 
