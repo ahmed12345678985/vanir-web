@@ -3954,8 +3954,8 @@
       "category": "hero",
       "key": "hero_settings",
       "settingKey": "hero_settings",
-      "settingValue": "{\"title\":\"\",\"subtitle\":\"\",\"mediaUrl\":\"/images/hero-egyptian.jpg\",\"buttonText1\":\"Explore Destinations\",\"buttonText2\":\"Contact Us\",\"buttonLink1\":\"/destinations\",\"buttonLink2\":\"/contact\",\"textPositionX\":0,\"textPositionY\":0,\"backgroundType\":\"dynamic-slider\",\"overlayOpacity\":15}",
-      "value": "{\"title\":\"\",\"subtitle\":\"\",\"mediaUrl\":\"/images/hero-egyptian.jpg\",\"buttonText1\":\"Explore Destinations\",\"buttonText2\":\"Contact Us\",\"buttonLink1\":\"/destinations\",\"buttonLink2\":\"/contact\",\"textPositionX\":0,\"textPositionY\":0,\"backgroundType\":\"dynamic-slider\",\"overlayOpacity\":15}"
+      "settingValue": "{\"title\":\"\",\"subtitle\":\"\",\"mediaUrl\":\"https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=1920&q=90\",\"buttonText1\":\"\",\"buttonText2\":\"\",\"buttonLink1\":\"/destinations\",\"buttonLink2\":\"/contact\",\"textPositionX\":0,\"textPositionY\":0,\"backgroundType\":\"static-image\",\"overlayOpacity\":15,\"showText\":false,\"hideText\":true,\"showButtons\":false,\"hideButtons\":true}",
+      "value": "{\"title\":\"\",\"subtitle\":\"\",\"mediaUrl\":\"https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=1920&q=90\",\"buttonText1\":\"\",\"buttonText2\":\"\",\"buttonLink1\":\"/destinations\",\"buttonLink2\":\"/contact\",\"textPositionX\":0,\"textPositionY\":0,\"backgroundType\":\"static-image\",\"overlayOpacity\":15,\"showText\":false,\"hideText\":true,\"showButtons\":false,\"hideButtons\":true}"
     },
     {
       "id": 6,

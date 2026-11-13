@@ -124,9 +124,14 @@ export async function uploadDirectMedia(file: File, folder = "uploads"): Promise
   } catch (err: any) {
     console.warn(`[siteSettingsApi] Storage upload failed (${err?.code || err?.message}), applying intelligent Data-URI fallback:`, err);
     // If quota exceeded or offline, compress image and return inline Data-URI
-    if (file.type.startsWith("image/")) {
-      const dataUri = await compressImageToDataUri(file);
-      return dataUri;
+    const isImg = !file.type || file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg|avif)$/i.test(file.name);
+    if (isImg) {
+      try {
+        const dataUri = await compressImageToDataUri(file);
+        return dataUri;
+      } catch (compErr) {
+        console.error("Compression error during fallback:", compErr);
+      }
     }
     throw err;
   }

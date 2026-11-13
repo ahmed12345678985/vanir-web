@@ -22,11 +22,28 @@ const isVideoUrl = (url?: string): boolean => {
   return /\.(mp4|webm)(\?|$)/i.test(url);
 };
 
+const GULFSTREAM_JET_URL = "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=1920&q=90";
+
 const DEFAULT_SLIDES = [
-  "/images/The_Nile_River_at_Cairo.jpg",
-  "/images/final_cairo_post.png",
-  "https://images.unsplash.com/photo-1539650116574-75c0c6d73c0e?w=1600&q=80",
+  GULFSTREAM_JET_URL, // طائرة خاصة جلف ستريم حقيقية وفخمة في مدرج المطار
+  "https://images.unsplash.com/photo-1569263979104-865ab7cd8d17?w=1920&q=90", // يخت ملكي في موناكو
+  "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=1920&q=90", // فيلات المالديف الفاخرة فوق الماء
 ];
+
+const isBadOrLegacyImage = (url?: string): boolean => {
+  if (!url || typeof url !== "string") return true;
+  const u = url.trim();
+  return (
+    u === "" ||
+    u.includes("1793938953813") ||
+    u.includes("1793989498427") ||
+    u.includes("gallery_8FXUpj9N") ||
+    u.includes("gallery_g48xPq4c") ||
+    u.includes("The_Nile_River") ||
+    u.includes("hero-egyptian") ||
+    u.includes("chairs")
+  );
+};
 
 export default function HeroSection() {
   const sectionRef = useRef<HTMLElement | null>(null);
@@ -116,35 +133,35 @@ export default function HeroSection() {
   const slides = useMemo<string[]>(() => {
     // 1. Static Image Mode: Strictly ONE image. Never rotate or slide.
     if (isStatic) {
-      if (heroData?.mediaUrl && typeof heroData.mediaUrl === "string" && heroData.mediaUrl.trim() !== "") {
+      if (heroData?.mediaUrl && typeof heroData.mediaUrl === "string" && !isBadOrLegacyImage(heroData.mediaUrl)) {
         return [heroData.mediaUrl.trim()];
       }
-      if (Array.isArray(heroImages) && heroImages.length > 0 && heroImages[0]?.url) {
+      if (Array.isArray(heroImages) && heroImages.length > 0 && heroImages[0]?.url && !isBadOrLegacyImage(heroImages[0].url)) {
         return [heroImages[0].url.trim()];
       }
-      return ["/images/The_Nile_River_at_Cairo.jpg"];
+      return [GULFSTREAM_JET_URL];
     }
 
     // 2. Video Mode: single video URL
     if (isVideoMode) {
-      if (heroData?.mediaUrl && typeof heroData.mediaUrl === "string" && heroData.mediaUrl.trim() !== "") {
+      if (heroData?.mediaUrl && typeof heroData.mediaUrl === "string" && !isBadOrLegacyImage(heroData.mediaUrl)) {
         return [heroData.mediaUrl.trim()];
       }
-      return ["/images/The_Nile_River_at_Cairo.jpg"];
+      return [GULFSTREAM_JET_URL];
     }
 
     // 3. Dynamic Slider Mode: ONLY use the user's active slides from heroImages
     const list: string[] = [];
     if (Array.isArray(heroImages)) {
       heroImages.forEach((item) => {
-        if (item?.url && typeof item.url === "string" && item.url.trim() !== "") {
+        if (item?.url && typeof item.url === "string" && !isBadOrLegacyImage(item.url)) {
           const u = item.url.trim();
           if (!list.includes(u)) list.push(u);
         }
       });
     }
     // If no images configured in heroImages yet, fallback to heroData.mediaUrl
-    if (list.length === 0 && heroData?.mediaUrl && typeof heroData.mediaUrl === "string" && heroData.mediaUrl.trim() !== "") {
+    if (list.length === 0 && heroData?.mediaUrl && typeof heroData.mediaUrl === "string" && !isBadOrLegacyImage(heroData.mediaUrl)) {
       list.push(heroData.mediaUrl.trim());
     }
     // If completely empty, use curated luxury defaults
@@ -179,23 +196,12 @@ export default function HeroSection() {
     setCurrentIndex((prev) => (prev + 1) % slides.length);
   };
 
-  // Text values - ONLY render if user explicitly provided non-empty text
-  const mainTitle = (heroData?.title && typeof heroData.title === "string") ? heroData.title.trim() : "";
-  const subtitle = (heroData?.subtitle && typeof heroData.subtitle === "string") ? heroData.subtitle.trim() : "";
-  const hasText = Boolean(mainTitle || subtitle);
-  const showText = hasText && heroData?.showText !== false && heroData?.hideText !== true;
-
-  // Buttons
-  const showButtons = heroData?.showButtons !== false && heroData?.hideButtons !== true;
-  const btn1Text = (heroData?.buttonText1 && typeof heroData.buttonText1 === "string" && heroData.buttonText1.trim() !== "")
-    ? heroData.buttonText1.trim()
-    : "Explore Destinations";
-  const btn2Text = (heroData?.buttonText2 && typeof heroData.buttonText2 === "string" && heroData.buttonText2.trim() !== "")
-    ? heroData.buttonText2.trim()
-    : "Contact Us";
+  // Strict design requirement: clean cinematic hero with ZERO text and ZERO buttons
+  const showText = false;
+  const showButtons = false;
 
   const isMobile = useIsMobile();
-  const isCustomMobile = isMobile && Boolean(heroData?.mobileMediaUrl);
+  const isCustomMobile = isMobile && Boolean(heroData?.mobileMediaUrl) && !isBadOrLegacyImage(heroData?.mobileMediaUrl);
   const activeCropX = isCustomMobile
     ? (typeof heroData?.mobileMediaCropX === "number" ? heroData.mobileMediaCropX : 50)
     : (typeof heroData?.mediaCropX === "number" ? heroData.mediaCropX : 50);
@@ -205,7 +211,7 @@ export default function HeroSection() {
 
   const activeSlideUrl = (isCustomMobile && heroData?.mobileMediaUrl)
     ? heroData.mobileMediaUrl
-    : (slides[currentIndex] || slides[0] || "/The_Nile_River_at_Cairo.jpg");
+    : (slides[currentIndex] || slides[0] || GULFSTREAM_JET_URL);
   const isVideo = isVideoUrl(activeSlideUrl);
 
   return (
@@ -235,19 +241,14 @@ export default function HeroSection() {
             />
           ) : (
             <picture className="w-full h-full block">
-              {heroData?.mobileMediaUrl && (
-                <source
-                  media="(max-width: 768px)"
-                  srcSet={heroData.mobileMediaUrl}
-                />
-              )}
               <img
                 src={activeSlideUrl}
                 className="w-full h-full object-cover"
                 style={{ objectPosition: `${activeCropX}% ${activeCropY}%` }}
-                alt="VANIR GROUP Luxury Travel"
+                alt="VANIR GROUP Luxury Private Aviation"
                 onError={(e) => {
-                  applyLuxuryImageFallback(e.currentTarget);
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = GULFSTREAM_JET_URL;
                 }}
               />
             </picture>

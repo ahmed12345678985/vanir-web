@@ -1,5 +1,5 @@
 const LUXURY_PLACEHOLDER_URL =
-  "https://images.unsplash.com/photo-1539650116574-8efeb43e2750?auto=format&fit=crop&w=2000&q=80";
+  "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?auto=format&fit=crop&w=2000&q=80"; // Authentic Gulfstream private jet on reflective runway
 
 const IMAGE_FALLBACK_DATA_ATTR = "data-luxury-fallback-applied";
 const MEDIA_PROXY_TRIED_ATTR = "data-media-proxy-tried";

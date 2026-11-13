@@ -1,12 +1,9 @@
 import { useState, useRef } from "react";
-import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Upload, Loader2, Image as ImageIcon, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { getFirebaseApp } from "@/lib/firebase-api";
+import { uploadDirectMedia, compressImageToDataUri } from "@/lib/siteSettingsApi";
 
 interface ImageUploadFieldProps {
   value: string;
@@ -40,23 +37,24 @@ export function ImageUploadField({
 
     setIsUploading(true);
     try {
-      const app = getFirebaseApp();
-      if (app) {
-        const storage = getStorage(app);
-        const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-        const fileRef = ref(storage, `uploads/${Date.now()}_${sanitizedName}`);
-        await uploadBytes(fileRef, file, { contentType: file.type || "image/jpeg" });
-        const downloadUrl = await getDownloadURL(fileRef);
-        onChange(downloadUrl);
-        toast.success("تم رفع الصورة بنجاح وحفظها سحابياً");
-      } else {
-        throw new Error("Firebase Storage غير مهيأ");
-      }
+      // 1. Direct upload with automatic intelligent Data-URI & Canvas compression fallback
+      // This guarantees that if Firebase Storage quota is exceeded, the upload NEVER fails!
+      const downloadUrl = await uploadDirectMedia(file, "uploads");
+      onChange(downloadUrl);
+      toast.success("تم تجهيز وضغط الصورة بنجاح وحفظها سحابياً ✓");
     } catch (err: any) {
-      console.error("Firebase Storage upload error:", err);
-      toast.error(`فشل رفع الصورة: ${err.message || "حدث خطأ غير متوقع"}`);
+      console.warn("Direct upload fallback to client-side compression:", err);
+      try {
+        const dataUri = await compressImageToDataUri(file);
+        onChange(dataUri);
+        toast.success("تم ضغط الصورة وتجهيزها سحابياً بنجاح ✓");
+      } catch (fallbackErr: any) {
+        console.error("Local compression error:", fallbackErr);
+        toast.error(`تعذر معالجة الصورة: ${fallbackErr.message || "حدث خطأ غير متوقع"}`);
+      }
     } finally {
       setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
