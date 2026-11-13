@@ -25,14 +25,18 @@ export default function BlogPost() {
   useEffect(() => {
     let mounted = true;
     if (slug) {
-      getBlogPostBySlug(slug).then((res) => {
-        if (mounted && res) {
-          setLivePost(res);
-          setIsLoading(false);
-        }
-      }).catch(() => {
-        if (mounted) setIsLoading(false);
-      });
+      getBlogPostBySlug(slug)
+        .then((res) => {
+          if (mounted) {
+            if (res) setLivePost(res);
+            setIsLoading(false);
+          }
+        })
+        .catch(() => {
+          if (mounted) setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
     }
     return () => {
       mounted = false;
@@ -147,7 +151,7 @@ export default function BlogPost() {
     );
   }
 
-  if (error || !post) {
+  if (!post) {
     return (
       <div className="min-h-screen bg-[var(--theme-background)]">
         <Navbar />
@@ -173,7 +177,11 @@ export default function BlogPost() {
     );
   }
 
-  const tags: string[] = Array.isArray(post.tags) ? (post.tags as string[]) : [];
+  const tags: string[] = Array.isArray(post.tags)
+    ? (post.tags as string[])
+    : typeof post.tags === "string"
+    ? post.tags.split(",").map((t: string) => t.trim()).filter(Boolean)
+    : [];
 
   return (
     <div className="min-h-screen bg-[var(--theme-background)]">

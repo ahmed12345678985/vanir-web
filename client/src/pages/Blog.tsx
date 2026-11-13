@@ -43,11 +43,11 @@ export default function Blog() {
     );
   })();
 
-  const filteredPosts = posts?.filter(
+  const filteredPosts = (posts || []).filter(
     (p: any) =>
       !searchQuery ||
-      p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.excerpt.toLowerCase().includes(searchQuery.toLowerCase())
+      String(p.title || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
+      String(p.excerpt || "").toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // JSON-LD for Blog page
