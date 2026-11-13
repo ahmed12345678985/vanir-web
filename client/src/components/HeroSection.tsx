@@ -42,7 +42,6 @@ const isBadOrLegacyImage = (url?: string): boolean => {
     u.includes("The_Nile_River") ||
     u.includes("hero-egyptian") ||
     u.includes("chairs") ||
-    u.startsWith("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUND") ||
     u.includes("1512453979705")
   );
 };
@@ -57,17 +56,17 @@ export default function HeroSection() {
   // Fetch hero data from admin
   const { data: savedHeroData } = trpc.siteSettings.get.useQuery(
     { category: "hero", key: "hero_settings" },
-    { staleTime: 60000, refetchOnWindowFocus: false }
+    { staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: false }
   );
   const { data: savedLegacyHeroData } = trpc.siteSettings.get.useQuery(
     { category: "hero", key: "hero_data" },
-    { staleTime: 60000, refetchOnWindowFocus: false }
+    { staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: false }
   );
 
   // Fetch hero images from admin
   const { data: savedHeroImages } = trpc.siteSettings.get.useQuery(
     { category: "hero", key: "hero_images" },
-    { staleTime: 60000, refetchOnWindowFocus: false }
+    { staleTime: 0, refetchOnMount: "always", refetchOnWindowFocus: false }
   );
 
   useEffect(() => {
@@ -75,7 +74,7 @@ export default function HeroSection() {
     if (payload) {
       try {
         const parsed = JSON.parse(payload);
-        setHeroData(parsed);
+        setHeroData((prev: any) => ({ ...prev, ...parsed }));
       } catch (e) {
         console.error("Failed to parse hero data:", e);
       }
