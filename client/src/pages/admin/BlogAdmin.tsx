@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, Search, Eye, Upload, FileText, Sparkles, Layers, Download, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Eye, Upload, FileText, Sparkles, Layers, Download, CheckCircle2, Loader2, RefreshCw, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ImageUploadField } from "@/components/admin/ImageUploadField";
 import {
@@ -28,6 +28,7 @@ export default function BlogAdmin() {
   const [seoLang, setSeoLang] = useState<"ar" | "en">("ar");
   const [isSaving, setIsSaving] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isRefreshingImages, setIsRefreshingImages] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [articles, setArticles] = useState<BlogPostItem[]>([]);
 
@@ -185,49 +186,87 @@ export default function BlogAdmin() {
     downloadAnchor.remove();
   };
 
-  const pickTopicCoverImage = (topic: string, idx = 0): string => {
+  const pickTopicCoverImage = (topic: string, idx = 0, usedSet?: Set<string>): string => {
     const t = topic.toLowerCase();
-    // Specific destinations
-    if (/dubai|دبي|إمارات|uae/.test(t)) return "/images/final_dubai_post.png";
-    if (/cairo|قاهر|أهرام|pyramids|giza|جيزة/.test(t)) return "/images/final_cairo_post.png";
-    if (/luxor|أقصر|الأقصر/.test(t)) return "/images/final_luxor_post.png";
-    if (/aswan|أسوان/.test(t)) return "/images/final_aswan_post.png";
-    if (/alexandria|إسكندرية|اسكندرية/.test(t)) return "/images/final_alexandria_post.png";
-    if (/sharm|شرم/.test(t)) return "/images/final_sharm_post.png";
-    if (/dahab|دهب/.test(t)) return "/images/final_dahab_post.png";
-    if (/siwa|سيوة/.test(t)) return "/images/final_siwa_post.png";
-    if (/marsa|مرسى علم/.test(t)) return "/images/final_marsa_alam_post.png";
-    if (/london|لندن/.test(t)) return "/images/final_london_post.png";
-    if (/paris|باريس/.test(t)) return "/images/final_paris_post.png";
-    if (/rome|روما|italy|إيطاليا/.test(t)) return "/images/final_rome_post.png";
-    if (/istanbul|إسطنبول|اسطنبول|تركيا/.test(t)) return "/images/final_istanbul_post.png";
-    if (/santorini|سانتوريني|يونان|greece/.test(t)) return "/images/final_santorini_post.png";
-    if (/tokyo|طوكيو|japan|يابان/.test(t)) return "/images/final_tokyo_post.png";
-    if (/bali|بالي/.test(t)) return "/images/final_bali_post.png";
-    if (/malaysia|ماليزيا/.test(t)) return "/images/final_malaysia_post.png";
-    if (/maldives|island|جزر|مالديف/.test(t)) return "/images/final_maldives_post.png";
-
-    // Travel themes & services
-    if (/jet|flight|aviation|airport|ticket|طائر|طيران|تذاكر|مطار/.test(t)) return "/images/hero_jet_luxury.jpg";
-    if (/yacht|cruise|nile|sea|يخت|نيل|بحر|كروز/.test(t)) return "/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg";
-    if (/hotel|resort|stay|villa|فندق|فنادق|منتجع|إقامة|فيلا/.test(t)) return "/images/Four-Seasons-Hualalai-1.jpeg";
-    if (/ai|smart|tech|future|ذكاء|ذكية|تقني|مستقبل/.test(t)) return "/images/vanir_world_5.png";
-    if (/quiet|escape|calm|crowd|nature|ضوضاء|زحام|هدوء|استجمام|طبيعة/.test(t)) return "/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg";
-    if (/shop|luxury|brand|تسوق|فاخر/.test(t)) return "/images/vanir_shopping_1.png";
-    if (/culture|museum|history|متحف|تاريخ|تراث|ثقاف/.test(t)) return "/images/vanir_culture_1.png";
-    if (/adventure|safari|desert|مغامر|سفاري|صحراء/.test(t)) return "/images/vanir_adventure_4.png";
-
-    // Curated fallback rotation so each article gets a distinct, verified image
-    const fallbackPool = [
-      "/images/vanir_world_4.png",
-      "/images/FS_Punta_Mita.jpg",
-      "/images/Regent-Seven-Seas-Voyager-Horizon-Lounge.jpg",
-      "/images/four-seasons-lanai.jpeg",
-      "/images/vanir_culture_3.png",
-      "/images/The_Nile_River_at_Cairo.jpg",
-      "/images/vanir_adventure_5.png",
+    const diversePool = [
+      "/images/destinations/world_iceland_aurora.jpg",
+      "/images/destinations/world_switzerland_interlaken.jpg",
+      "/images/destinations/world_italy_amalfi.jpg",
+      "/images/destinations/world_greece_mykonos.jpg",
+      "/images/destinations/world_japan_kyoto.jpg",
+      "/images/destinations/world_morocco_marrakech.jpg",
+      "/images/destinations/world_thailand_phi_phi.jpg",
+      "/images/destinations/world_usa_new_york.jpg",
+      "/images/destinations/world_australia_sydney.jpg",
+      "/images/destinations/world_brazil_rio.jpg",
+      "/images/destinations/egypt_siwa_oasis.jpg",
+      "/images/destinations/egypt_aswan_nile.jpg",
+      "/images/destinations/egypt_cairo_moez_street.jpg",
+      "/images/destinations/egypt_luxor_hatshepsut.jpg",
+      "/images/destinations/egypt_abu_simbel.jpg",
+      "/images/destinations/egypt_alexandria_citadel.jpg",
+      "/images/destinations/egypt_dahab_blue_hole.jpg",
+      "/images/destinations/egypt_hurghada_beach.jpg",
+      "/images/destinations/egypt_white_desert.jpg",
+      "/images/services/service_flight_booking.jpg",
+      "/images/services/service_hotel_reservation.jpg",
+      "/images/services/service_custom_itinerary.jpg",
+      "/images/services/service_corporate_travel.jpg",
+      "/images/services/service_transportation.jpg",
+      "/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg",
+      "/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg",
+      "/images/Four-Seasons-Hualalai-1.jpeg",
     ];
-    return fallbackPool[idx % fallbackPool.length];
+
+    let preferred = "";
+    // Specific destinations
+    if (/dubai|دبي|إمارات|uae/.test(t)) preferred = "/images/final_dubai_post.png";
+    else if (/cairo|قاهر|أهرام|pyramids|giza|جيزة/.test(t)) preferred = "/images/destinations/egypt_cairo_moez_street.jpg";
+    else if (/luxor|أقصر|الأقصر/.test(t)) preferred = "/images/destinations/egypt_luxor_hatshepsut.jpg";
+    else if (/aswan|أسوان/.test(t)) preferred = "/images/destinations/egypt_aswan_nile.jpg";
+    else if (/alexandria|إسكندرية|اسكندرية/.test(t)) preferred = "/images/destinations/egypt_alexandria_citadel.jpg";
+    else if (/sharm|شرم/.test(t)) preferred = "/images/final_sharm_post.png";
+    else if (/dahab|دهب/.test(t)) preferred = "/images/destinations/egypt_dahab_blue_hole.jpg";
+    else if (/siwa|سيوة/.test(t)) preferred = "/images/destinations/egypt_siwa_oasis.jpg";
+    else if (/marsa|مرسى علم/.test(t)) preferred = "/images/destinations/egypt_marsa_alam_dugong.jpg";
+    else if (/london|لندن/.test(t)) preferred = "/images/final_london_post.png";
+    else if (/paris|باريس/.test(t)) preferred = "/images/final_paris_post.png";
+    else if (/rome|روما|italy|إيطاليا/.test(t)) preferred = "/images/destinations/world_italy_amalfi.jpg";
+    else if (/istanbul|إسطنبول|اسطنبول|تركيا/.test(t)) preferred = "/images/final_istanbul_post.png";
+    else if (/santorini|سانتوريني|يونان|greece/.test(t)) preferred = "/images/destinations/world_greece_mykonos.jpg";
+    else if (/tokyo|طوكيو|japan|يابان/.test(t)) preferred = "/images/destinations/world_japan_kyoto.jpg";
+    else if (/bali|بالي/.test(t)) preferred = "/images/final_bali_post.png";
+    else if (/malaysia|ماليزيا/.test(t)) preferred = "/images/final_malaysia_post.png";
+    else if (/maldives|island|جزر|مالديف/.test(t)) preferred = "/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg";
+    // Travel themes & services
+    else if (/noctourism|night|ليل|ليلي|نجوم|سماء/.test(t)) preferred = "/images/destinations/world_iceland_aurora.jpg";
+    else if (/slow travel|بطيئ|أهل البلد|ثقاف|محلي/.test(t)) preferred = "/images/destinations/world_switzerland_interlaken.jpg";
+    else if (/quiet|escape|calm|crowd|nature|ضوضاء|زحام|هدوء|استجمام|طبيعة/.test(t)) preferred = "/images/destinations/egypt_siwa_oasis.jpg";
+    else if (/jet|flight|aviation|airport|ticket|طائر|طيران|تذاكر|مطار/.test(t)) preferred = "/images/services/service_flight_booking.jpg";
+    else if (/yacht|cruise|nile|sea|يخت|نيل|بحر|كروز/.test(t)) preferred = "/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg";
+    else if (/hotel|resort|stay|villa|فندق|فنادق|منتجع|إقامة|فيلا/.test(t)) preferred = "/images/services/service_hotel_reservation.jpg";
+    else if (/ai|smart|tech|future|ذكاء|ذكية|تقني|مستقبل/.test(t)) preferred = "/images/destinations/world_japan_kyoto.jpg";
+    else if (/shop|luxury|brand|تسوق|فاخر/.test(t)) preferred = "/images/destinations/world_usa_new_york.jpg";
+    else if (/culture|museum|history|متحف|تاريخ|تراث/.test(t)) preferred = "/images/destinations/egypt_abu_simbel.jpg";
+    else if (/adventure|safari|desert|مغامر|سفاري|صحراء/.test(t)) preferred = "/images/destinations/egypt_white_desert.jpg";
+
+    if (preferred && (!usedSet || !usedSet.has(preferred))) {
+      usedSet?.add(preferred);
+      return preferred;
+    }
+
+    // Pick next unused image from diversePool so every article in a batch gets a unique photo
+    if (usedSet) {
+      for (let offset = 0; offset < diversePool.length; offset++) {
+        const candidate = diversePool[(idx + offset) % diversePool.length];
+        if (!usedSet.has(candidate)) {
+          usedSet.add(candidate);
+          return candidate;
+        }
+      }
+    }
+
+    return diversePool[idx % diversePool.length];
   };
 
   const buildSeoBatchArticles = (rawTopics: string, category: string, lang: "ar" | "en") => {
@@ -258,8 +297,9 @@ export default function BlogAdmin() {
       }
     }
 
+    const usedImages = new Set<string>();
     return lines.map(({ title, seedText }, idx) => {
-      const coverImageUrl = pickTopicCoverImage(seedText || title, idx);
+      const coverImageUrl = pickTopicCoverImage(seedText || title, idx, usedImages);
       const slugBase = generateSlug(title) || `vanir-seo-guide-${Date.now()}-${idx + 1}`;
       if (lang === "ar") {
         const excerpt = `دليل VANIR GROUP الشامل حول ${title} — برامج VIP مخصصة، طيران خاص، وإقامة فاخرة 5 نجوم بأعلى معايير الخصوصية والاحترافية.`.slice(0, 280);
@@ -395,6 +435,7 @@ export default function BlogAdmin() {
       }
 
       // Standardize fields
+      const usedBulkImages = new Set<string>();
       const formatted = parsedArticles.map((art, idx) => ({
         title: String(art.title || `مقالة رقم ${idx + 1}`),
         slug: String(art.slug || generateSlug(art.title || `article-${Date.now()}-${idx}`)),
@@ -402,7 +443,12 @@ export default function BlogAdmin() {
         content: String(art.content || art.body || "محتوى المقالة"),
         category: String(art.category || "Luxury Travel"),
         authorName: String(art.authorName || art.author || "Ahmed Roshdi"),
-        coverImageUrl: String(art.coverImageUrl || art.imageUrl || art.image || "/images/The_Nile_River_at_Cairo.jpg"),
+        coverImageUrl: String(
+          art.coverImageUrl ||
+            art.imageUrl ||
+            art.image ||
+            pickTopicCoverImage(String(art.title || ""), idx, usedBulkImages)
+        ),
         tags: Array.isArray(art.tags) ? art.tags : (typeof art.tags === "string" ? art.tags.split(",").map((t: string) => t.trim()) : ["Luxury"]),
         metaTitle: art.metaTitle ? String(art.metaTitle) : undefined,
         metaDescription: art.metaDescription ? String(art.metaDescription) : undefined,
@@ -441,6 +487,39 @@ export default function BlogAdmin() {
     reader.readAsText(file);
   };
 
+  const handleAssignDiverseImages = async () => {
+    if (!articles.length) return;
+    setIsRefreshingImages(true);
+    try {
+      const usedSet = new Set<string>();
+      let updated = 0;
+      for (let i = 0; i < articles.length; i++) {
+        const art = articles[i];
+        const newImg = pickTopicCoverImage(`${art.title} ${art.excerpt || ""}`, i, usedSet);
+        await saveBlogPost({
+          id: art.id,
+          title: art.title,
+          slug: art.slug,
+          excerpt: art.excerpt,
+          content: art.content,
+          coverImageUrl: newImg,
+          category: art.category,
+          authorName: art.authorName,
+          tags: art.tags,
+          status: art.status,
+        });
+        updated++;
+      }
+      toast.success(`تم تحديث وتوزيع صور متنوعة لـ ${updated} مقالة بنجاح!`);
+      await loadArticles();
+    } catch (e: any) {
+      console.error("Assign diverse images error:", e);
+      toast.error(`حدث خطأ أثناء تحديث الصور: ${e.message}`);
+    } finally {
+      setIsRefreshingImages(false);
+    }
+  };
+
   const filteredArticles = articles.filter(
     (a) =>
       !search ||
@@ -472,6 +551,17 @@ export default function BlogAdmin() {
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin text-[var(--theme-primary)]" : ""}`} />
             تحديث
+          </Button>
+
+          {/* Auto-Assign Diverse Images Button */}
+          <Button
+            onClick={handleAssignDiverseImages}
+            disabled={isRefreshingImages || articles.length === 0}
+            variant="outline"
+            className="gap-2 bg-white/5 hover:bg-white/10 text-white border-white/10 text-xs h-10"
+          >
+            <ImageIcon className={`w-4 h-4 text-[var(--theme-primary)] ${isRefreshingImages ? "animate-pulse" : ""}`} />
+            {isRefreshingImages ? "جاري توزيع الصور..." : "توزيع صور متنوعة للمقالات"}
           </Button>
 
           {/* Bulk Import Button */}
