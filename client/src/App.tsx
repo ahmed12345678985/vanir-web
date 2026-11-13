@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PageLoadingSkeleton from "./components/PageLoadingSkeleton";
 
@@ -205,6 +205,29 @@ function Router() {
       {/* Admin Portal (AdminLayout stays mounted, smooth tab navigation) */}
       <Route path="/admin" component={AdminPortal} />
       <Route path="/admin/:subpath*" component={AdminPortal} />
+
+      {/* Compatibility Aliases for Old Admin URLs (e.g. /design/hero, /app-controls) */}
+      <Route path="/design/hero">
+        {() => <Redirect to="/admin/hero" />}
+      </Route>
+      <Route path="/design/navbar">
+        {() => <Redirect to="/admin/navbar" />}
+      </Route>
+      <Route path="/design/pages">
+        {() => <Redirect to="/admin/pages" />}
+      </Route>
+      <Route path="/design/editor">
+        {() => <Redirect to="/admin/visual-editor" />}
+      </Route>
+      <Route path="/design/theme">
+        {() => <Redirect to="/admin/theme" />}
+      </Route>
+      <Route path="/app-controls">
+        {() => <Redirect to="/admin/mobile-app" />}
+      </Route>
+      <Route path="/tools/database">
+        {() => <Redirect to="/admin/database" />}
+      </Route>
 
       <Route path={"/404"} component={NotFound} />
       <Route component={NotFound} />

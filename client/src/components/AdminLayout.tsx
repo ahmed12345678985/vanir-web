@@ -63,37 +63,67 @@ import { useLocation, Link } from "wouter";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
+const ADMIN_BOOTSTRAP_EMAILS = [
+  "contact@vanirgroup.com",
+  "admin@vanirgroup.com",
+  "ahmedroshdi@gmail.com",
+  "roshdi@vanirgroup.com",
+];
+
+function isUserAdmin(email?: string | null): boolean {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return (
+    ADMIN_BOOTSTRAP_EMAILS.includes(normalized) ||
+    normalized.endsWith("@vanirgroup.com")
+  );
+}
+
 const adminMenuItems = [
-  { icon: LayoutDashboard, label: "Overview", path: "/admin", group: "main" },
-  { icon: BarChart3, label: "Analytics", path: "/admin/analytics", group: "main" },
-  { icon: MonitorSmartphone, label: "📱 تطبيق الموبايل (Vanir App)", path: "/admin/mobile-app", group: "main" },
-  { icon: MapPin, label: "Destinations", path: "/admin/destinations", group: "content" },
-  { icon: Crown, label: "Luxury & Packages", path: "/admin/packages", group: "content" },
-  { icon: Tag, label: "Offers", path: "/admin/offers", group: "content" },
-  { icon: BookOpen, label: "Blog", path: "/admin/blog", group: "content" },
-  { icon: Compass, label: "Activities", path: "/admin/activities", group: "content" },
-  { icon: Image, label: "Gallery", path: "/admin/gallery", group: "content" },
-  { icon: Star, label: "Reviews", path: "/admin/reviews", group: "content" },
-  { icon: CalendarCheck, label: "Bookings", path: "/admin/bookings", group: "operations" },
-  { icon: MessageSquare, label: "Messages", path: "/admin/messages", group: "operations" },
-  { icon: Users, label: "Users", path: "/admin/users", group: "operations" },
-  { icon: Coins, label: "Credits", path: "/admin/credits", group: "operations" },
-  { icon: PanelTop, label: "Hero Section", path: "/admin/hero", group: "design" },
-  { icon: Navigation, label: "Navbar", path: "/admin/navbar", group: "design" },
-  { icon: FileStack, label: "Pages", path: "/admin/pages", group: "design" },
-  { icon: MonitorSmartphone, label: "Live Visual Editor", path: "/admin/visual-editor", group: "design" },
-  { icon: Palette, label: "Theme & Colors", path: "/admin/theme", group: "design" },
-  { icon: Database, label: "Live Database", path: "/admin/database", group: "tools" },
-  { icon: Server, label: "System Health & Files", path: "/admin/system", group: "tools" },
-  { icon: Brain, label: "AI Command Center", path: "/admin/ai-command", group: "tools" },
-  { icon: Sparkles, label: "AI Studio", path: "/admin/ai-studio", group: "tools" },
-  { icon: Globe, label: "SEO Management", path: "/admin/seo", group: "tools" },
-  { icon: FolderOpen, label: "Media Library", path: "/admin/media", group: "tools" },
-  { icon: Settings, label: "Settings", path: "/admin/settings", group: "system" },
-  { icon: ShieldCheck, label: "Permissions", path: "/admin/permissions", group: "system" },
-  { icon: FileText, label: "Audit Log", path: "/admin/audit-log", group: "system" },
-  { icon: HardDrive, label: "Backup & Export", path: "/admin/backup", group: "system" },
-  { icon: Upload, label: "Import Data", path: "/admin/import", group: "system" },
+  // ── الرئيسية ──
+  { icon: LayoutDashboard, label: "نظرة عامة (Overview)", path: "/admin", group: "main" },
+  { icon: BarChart3, label: "التحليلات (Analytics)", path: "/admin/analytics", group: "main" },
+
+  // ── المحتوى (CONTENT) ──
+  { icon: MapPin, label: "الوجهات (Destinations)", path: "/admin/destinations", group: "content" },
+  { icon: Tag, label: "العروض (Offers)", path: "/admin/offers", group: "content" },
+  { icon: BookOpen, label: "المدونة (Blog)", path: "/admin/blog", group: "content" },
+  { icon: Compass, label: "الأنشطة (Activities)", path: "/admin/activities", group: "content" },
+  { icon: Image, label: "معرض الصور (Gallery)", path: "/admin/gallery", group: "content" },
+  { icon: Star, label: "التقييمات (Reviews)", path: "/admin/reviews", group: "content" },
+
+  // ── الخدمات والتطبيق (APP & SERVICES) ──
+  { icon: MonitorSmartphone, label: "مركز كافة الخدمات والتطبيق (14 خدمة)", path: "/admin/mobile-app", group: "services" },
+  { icon: Crown, label: "البرامج السياحية (Packages)", path: "/admin/packages", group: "services" },
+  { icon: Compass, label: "الطيران الخاص (Jets)", path: "/luxury/jets", group: "services" },
+  { icon: Compass, label: "اليخوت الفاخرة (Yachts)", path: "/luxury/yachts", group: "services" },
+  { icon: Compass, label: "الفنادق والمنتجعات (Hotels)", path: "/luxury/hotels", group: "services" },
+  { icon: Compass, label: "الليموزين والسيارات (Transfers)", path: "/luxury/transfers", group: "services" },
+  { icon: Sparkles, label: "المساعد الذكي VIP (AI Studio)", path: "/admin/ai-studio", group: "services" },
+
+  // ── العمليات (OPERATIONS) ──
+  { icon: CalendarCheck, label: "الحجوزات (Bookings)", path: "/admin/bookings", group: "operations" },
+  { icon: MessageSquare, label: "الرسائل (Messages)", path: "/admin/messages", group: "operations" },
+  { icon: Users, label: "العملاء والبروفايل VIP (CRM)", path: "/admin/users", group: "operations" },
+  { icon: Coins, label: "الرصيد والمدفوعات (Credits)", path: "/admin/credits", group: "operations" },
+
+  // ── التصميم (DESIGN) ──
+  { icon: PanelTop, label: "الواجهة الرئيسية (Hero)", path: "/admin/hero", group: "design" },
+  { icon: Navigation, label: "شريط التنقل (Navbar)", path: "/admin/navbar", group: "design" },
+  { icon: FileStack, label: "الصفحات (Pages)", path: "/admin/pages", group: "design" },
+  { icon: MonitorSmartphone, label: "المحرر المباشر (Editor)", path: "/admin/visual-editor", group: "design" },
+  { icon: Palette, label: "المظهر والألوان (Theme)", path: "/admin/theme", group: "design" },
+
+  // ── الأدوات (TOOLS) ──
+  { icon: Database, label: "قاعدة البيانات المباشرة", path: "/admin/database", group: "tools" },
+  { icon: Server, label: "صحة النظام والملفات", path: "/admin/system", group: "tools" },
+  { icon: Brain, label: "مركز الذكاء الاصطناعي", path: "/admin/ai-command", group: "tools" },
+  { icon: Globe, label: "إدارة محركات البحث (SEO)", path: "/admin/seo", group: "tools" },
+  { icon: FolderOpen, label: "مكتبة الوسائط (Media)", path: "/admin/media", group: "tools" },
+  { icon: HardDrive, label: "النسخ الاحتياطي والتصدير", path: "/admin/backup", group: "tools" },
+  { icon: Upload, label: "استيراد البيانات", path: "/admin/import", group: "tools" },
+  { icon: ShieldCheck, label: "الصلاحيات (Permissions)", path: "/admin/permissions", group: "tools" },
+  { icon: FileText, label: "سجل العمليات (Audit Log)", path: "/admin/audit-log", group: "tools" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "admin-sidebar-width";
@@ -232,25 +262,34 @@ export default function AdminLayout({
     );
   }
 
-  if (user.role !== "admin") {
+  const isAuthorized = user.role === "admin" || isUserAdmin(user.email);
+  if (!isAuthorized) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[var(--theme-surface)]">
-        <div className="flex flex-col items-center gap-6 p-8 max-w-md w-full">
+        <div className="flex flex-col items-center gap-6 p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
             <Crown size={28} className="text-red-400" />
           </div>
           <h1 className="text-2xl font-[var(--font-display)] font-bold text-white text-center">
-            Access Denied
+            الوصول محظور · Admin Access Denied
           </h1>
-          <p className="text-sm text-white/50 font-[var(--font-body)] text-center">
-            You don't have admin privileges. Contact the site owner for access.
+          <p className="text-sm text-white/60 font-[var(--font-body)] text-center leading-relaxed">
+            عذراً، هذا الحساب ليس لديه صلاحيات الإدارة العليا للوحة تحكم فانير جروب. تم تسجيل الدخول كعميل VIP عادي.
           </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--theme-primary)] text-[var(--theme-surface)] font-[var(--font-body)] font-semibold text-sm rounded-lg hover:bg-[var(--theme-primary-light)] transition-colors"
-          >
-            <ArrowLeft size={14} /> Back to website
-          </Link>
+          <div className="flex flex-col gap-2 w-full pt-2">
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[var(--theme-primary)] text-black font-semibold text-sm rounded-lg hover:opacity-90 transition-opacity"
+            >
+              <ArrowLeft size={14} /> العودة للموقع الرئيسي
+            </Link>
+            <Link
+              href="/admin/login"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2 border border-white/10 text-white/70 hover:text-white font-medium text-xs rounded-lg transition-colors"
+            >
+              تسجيل الدخول بحساب الإدارة
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -364,11 +403,11 @@ function AdminLayoutContent({
               {(() => {
                 const groups = [
                   { key: "main", label: "" },
-                  { key: "content", label: "Content" },
-                  { key: "operations", label: "Operations" },
-                  { key: "design", label: "Design" },
-                  { key: "tools", label: "Tools" },
-                  { key: "system", label: "System" },
+                  { key: "content", label: "المحتوى (CONTENT)" },
+                  { key: "services", label: "الخدمات والتطبيق (APP & SERVICES)" },
+                  { key: "operations", label: "العمليات (OPERATIONS)" },
+                  { key: "design", label: "التصميم (DESIGN)" },
+                  { key: "tools", label: "الأدوات (TOOLS)" },
                 ];
                 return groups.map(group => {
                   const items = adminMenuItems.filter(i => i.group === group.key);

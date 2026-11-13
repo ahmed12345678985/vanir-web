@@ -17,7 +17,23 @@ import {
 import { getAuth } from "firebase/auth";
 import { ASSETS } from "@/config/assets";
 
-const EGYPT_IMAGE = "/images/The_Nile_River_at_Cairo.jpg";
+const EGYPT_IMAGE = "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=1920&q=90";
+
+const ADMIN_BOOTSTRAP_EMAILS = [
+  "contact@vanirgroup.com",
+  "admin@vanirgroup.com",
+  "ahmedroshdi@gmail.com",
+  "roshdi@vanirgroup.com",
+];
+
+function isUserAdmin(email?: string | null): boolean {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return (
+    ADMIN_BOOTSTRAP_EMAILS.includes(normalized) ||
+    normalized.endsWith("@vanirgroup.com")
+  );
+}
 
 export default function Login() {
   const { user, isAuthenticated } = useAuth();
@@ -34,15 +50,16 @@ export default function Login() {
   const searchParams = new URLSearchParams(globalThis.location?.search || "");
   const nextPath = searchParams.get("next") || "/";
 
-  // إذا كان المستخدم مسجلاً بالفعل، أعد توجيهه — بدون حجب عرض النموذج.
+  // إذا كان المستخدم مسجلاً بالفعل، أعد توجيهه بدقة بناء على الرتبة (Admin vs User)
   useEffect(() => {
     if (isAuthenticated && user) {
+      const userRole = (user as any)?.role || (isUserAdmin((user as any)?.email) ? "admin" : "user");
       const dest =
-        nextPath.startsWith("/admin")
+        nextPath.startsWith("/admin") && userRole === "admin"
           ? nextPath
-          : (user as any)?.role === "admin"
+          : userRole === "admin"
           ? "/admin"
-          : "/";
+          : "/profile";
       setLocation(dest);
     }
   }, [isAuthenticated, user, setLocation, nextPath]);
@@ -60,18 +77,22 @@ export default function Login() {
       const app = getFirebaseApp();
       const currentUser = app ? getAuth(app).currentUser : null;
       if (currentUser) {
+        const isAdmin = isUserAdmin(currentUser.email);
+        const assignedRole = isAdmin ? "admin" : "user";
         localStorage.setItem(
           "vanir-client-auth-user",
           JSON.stringify({
             id: currentUser.uid,
             email: currentUser.email,
-            name: currentUser.displayName || "Admin",
-            role: "admin",
+            name: currentUser.displayName || (isAdmin ? "Admin" : "User"),
+            role: assignedRole,
           })
         );
+        const dest = (isAdmin && nextPath.startsWith("/admin")) ? nextPath : (isAdmin ? "/admin" : "/profile");
+        window.location.href = dest;
+        return;
       }
-      // Hard navigate to load fresh auth state
-      window.location.href = nextPath.startsWith("/admin") ? nextPath : "/";
+      window.location.href = "/";
     } catch (err: any) {
       setAuthError(err?.message || "Google sign-in failed.");
     } finally {
@@ -100,18 +121,22 @@ export default function Login() {
       const app = getFirebaseApp();
       const currentUser = app ? getAuth(app).currentUser : null;
       if (currentUser) {
+        const isAdmin = isUserAdmin(currentUser.email);
+        const assignedRole = isAdmin ? "admin" : "user";
         localStorage.setItem(
           "vanir-client-auth-user",
           JSON.stringify({
             id: currentUser.uid,
             email: currentUser.email,
-            name: currentUser.displayName || name || "User",
-            role: "admin",
+            name: currentUser.displayName || name || (isAdmin ? "Admin" : "User"),
+            role: assignedRole,
           })
         );
+        const dest = (isAdmin && nextPath.startsWith("/admin")) ? nextPath : (isAdmin ? "/admin" : "/profile");
+        window.location.href = dest;
+        return;
       }
-      // Hard navigate to clear tRPC cache and load fresh auth state
-      window.location.href = nextPath.startsWith("/admin") ? nextPath : "/";
+      window.location.href = "/";
     } catch (err: any) {
       const msg: string = err?.message || "Authentication failed.";
       setAuthError(

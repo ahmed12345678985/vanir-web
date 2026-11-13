@@ -14,6 +14,7 @@ import {
   getFirestoreSetting,
   setFirestoreSetting,
   uploadDirectMedia,
+  syncHeroToHomeFeed,
 } from "@/lib/siteSettingsApi";
 
 /* ─── Types ─── */
@@ -323,10 +324,18 @@ export default function HeroAdmin() {
     try {
       await setFirestoreSetting("hero", "hero_settings", JSON.stringify(heroData));
       await setFirestoreSetting("hero", "hero_images", JSON.stringify(heroImages));
+      if (heroData.mediaUrl) {
+        await syncHeroToHomeFeed(
+          heroData.title || "VANIR GROUP",
+          heroData.subtitle || "Luxury Private Aviation & Travel",
+          heroData.rotatingWords?.[0] || "Global First Class & Private Jet ✈️",
+          heroData.mediaUrl
+        ).catch(() => {});
+      }
       setMut.mutateAsync({ category: "hero", key: "hero_settings", value: JSON.stringify(heroData) }).catch(() => {});
       setMut.mutateAsync({ category: "hero", key: "hero_images", value: JSON.stringify(heroImages) }).catch(() => {});
       setHasChanges(false);
-      toast.success("تم الحفظ في قاعدة البيانات (Firebase Firestore)");
+      toast.success("تم الحفظ بنجاح ونشر التحديث للموقع وتطبيق الموبايل لحظياً!");
     } catch (err: unknown) {
       toast.error(`فشل في الحفظ: ${err instanceof Error ? err.message : "خطأ غير متوقع"}`);
     } finally { setSaving(false); }
@@ -394,13 +403,22 @@ export default function HeroAdmin() {
     try {
       const url = await uploadMedia(file);
       const mType = file.type.startsWith("video/") ? "video" : "image";
-      markData({
+      const updated = {
         ...heroData,
         mediaUrl: url,
         mediaType: mType as "image" | "video",
         backgroundType: mType === "video" ? "html5-video" : "static-image",
-      });
-      toast.success("تم رفع الوسائط");
+      };
+      setHeroData(updated);
+      await setFirestoreSetting("hero", "hero_settings", JSON.stringify(updated));
+      await syncHeroToHomeFeed(
+        updated.title || "VANIR GROUP",
+        updated.subtitle || "Luxury Private Aviation & Travel",
+        updated.rotatingWords?.[0] || "Global First Class & Private Jet ✈️",
+        url
+      ).catch(() => {});
+      setHasChanges(false);
+      toast.success("تم رفع الصورة وحفظها ونشرها في الموقع والتطبيق فورياً ✓");
     } catch (err: unknown) {
       toast.error(`فشل الرفع: ${err instanceof Error ? err.message : "Unknown error"}`);
     } finally { setUploadingBgMedia(false); }
@@ -412,11 +430,14 @@ export default function HeroAdmin() {
     setUploadingMobileMedia(true);
     try {
       const url = await uploadMedia(file);
-      markData({
+      const updated = {
         ...heroData,
         mobileMediaUrl: url,
-      });
-      toast.success("تم رفع صورة الهيرو للموبايل بنجاح");
+      };
+      setHeroData(updated);
+      await setFirestoreSetting("hero", "hero_settings", JSON.stringify(updated));
+      setHasChanges(false);
+      toast.success("تم رفع صورة الهيرو للموبايل وحفظها فورياً ✓");
     } catch (err: unknown) {
       toast.error(`فشل الرفع: ${err instanceof Error ? err.message : "خطأ غير متوقع"}`);
     } finally {

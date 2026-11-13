@@ -130,6 +130,7 @@ export default function GallerySection() {
   }, [error]);
 
   const normalizedImages = useMemo(() => {
+    if (!Array.isArray(images)) return [];
     return (images as any[])
       .map((img, index) => ({
         ...img,

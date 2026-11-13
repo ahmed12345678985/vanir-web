@@ -27,12 +27,12 @@ export default function TestimonialsSection() {
   const { data: dbReviews } = trpc.reviews.listApproved.useQuery();
 
   const testimonials = useMemo(() => {
-    if (dbReviews && dbReviews.length > 0) {
+    if (Array.isArray(dbReviews) && dbReviews.length > 0) {
       return dbReviews.slice(0, 3).map((r: any, idx: number) => ({
-        id: r.id || idx,
-        name: r.guestName || "VIP Guest",
-        role: r.tripName || "Luxury Traveler",
-        content: r.content || r.title || "Exceptional journey curated by Vanir Group.",
+        id: r?.id || idx,
+        name: r?.guestName || "VIP Guest",
+        role: r?.tripName || "Luxury Traveler",
+        content: r?.content || r?.title || "Exceptional journey curated by Vanir Group.",
       }));
     }
     return DEFAULT_TESTIMONIALS;

@@ -41,7 +41,9 @@ const isBadOrLegacyImage = (url?: string): boolean => {
     u.includes("gallery_g48xPq4c") ||
     u.includes("The_Nile_River") ||
     u.includes("hero-egyptian") ||
-    u.includes("chairs")
+    u.includes("chairs") ||
+    u.startsWith("data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUND") ||
+    u.includes("1512453979705")
   );
 };
 

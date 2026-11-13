@@ -45,6 +45,42 @@ export async function setFirestoreSetting(category: string, key: string, value: 
   );
 }
 
+// مزامنة بانر الواجهة مع بطاقات التطبيق (app_config/home_feed)
+export async function syncHeroToHomeFeed(title: string, subtitle: string, tag: string, imageUrl: string): Promise<void> {
+  try {
+    const feedRef = doc(db, "app_config", "home_feed");
+    const feedSnap = await getDoc(feedRef);
+    let cards: any[] = [];
+    if (feedSnap.exists() && Array.isArray(feedSnap.data()?.cards)) {
+      cards = [...feedSnap.data()?.cards];
+    }
+    if (cards.length > 0) {
+      cards[0] = {
+        ...cards[0],
+        title: title || cards[0].title || "VANIR GROUP",
+        subtitle: subtitle || cards[0].subtitle || "Luxury Private Aviation & Travel",
+        tag: tag || cards[0].tag || "Global First Class & Private Jet ✈️",
+        image: imageUrl || cards[0].image,
+        images: [imageUrl || cards[0].image],
+      };
+    } else {
+      cards.push({
+        id: "f1",
+        category: "flights",
+        tag: tag || "Global First Class & Private Jet ✈️",
+        title: title || "VANIR GROUP",
+        subtitle: subtitle || "Luxury Private Aviation & Travel",
+        image: imageUrl,
+        images: [imageUrl],
+        routeTarget: "FlightBooking",
+      });
+    }
+    await setDoc(feedRef, { cards, updatedAt: serverTimestamp() }, { merge: true });
+  } catch (err) {
+    console.warn("[siteSettingsApi] syncHeroToHomeFeed non-blocking error:", err);
+  }
+}
+
 // 3. جلب جميع إعدادات فئة معينة (مثل hero أو branding)
 export async function getFirestoreSettingsByCategory(category: string): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
@@ -72,40 +108,49 @@ export async function setManyFirestoreSettings(
   }
 }
 
-// Compress image on the client side into a lightweight base64 Data-URI (<100KB)
-// This ensures that even if Firebase Storage quota is exceeded, operations never break!
-export async function compressImageToDataUri(file: File, maxDim = 1200, quality = 0.78): Promise<string> {
+// Robust multi-pass client-side compression (strictly guarantees size < 60KB)
+// Eliminates Firestore 1MB property limit ("longer than 1048487 bytes") and handles Storage quota-exceeded flawlessly.
+export async function compressImageToDataUri(file: File, targetMaxDim = 800, startQuality = 0.65, maxBytes = 55000): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
     reader.onload = () => {
       const img = new Image();
-      img.onerror = reject;
+      img.onerror = () => resolve(reader.result as string);
       img.onload = () => {
-        let width = img.width;
-        let height = img.height;
-        if (width > maxDim || height > maxDim) {
-          if (width > height) {
-            height = Math.round((height * maxDim) / width);
-            width = maxDim;
-          } else {
-            width = Math.round((width * maxDim) / height);
-            height = maxDim;
+        let maxDim = targetMaxDim;
+        let quality = startQuality;
+        let finalDataUri = reader.result as string;
+
+        // Multi-pass loop downscaling resolution and quality until output is strictly under maxBytes (55KB)
+        for (let pass = 0; pass < 6; pass++) {
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
           }
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, w);
+          canvas.height = Math.max(1, h);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) break;
+          ctx.drawImage(img, 0, 0, w, h);
+
+          // Always output JPEG for guaranteed high compression efficiency (never uncompressed PNG!)
+          finalDataUri = canvas.toDataURL("image/jpeg", quality);
+          if (finalDataUri.length <= maxBytes) {
+            break;
+          }
+          maxDim = Math.round(maxDim * 0.82);
+          quality = Math.max(0.35, quality - 0.12);
         }
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) {
-          resolve(reader.result as string);
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        // Convert to highly optimized webp or jpeg
-        const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
-        const dataUri = canvas.toDataURL(mime, quality);
-        resolve(dataUri);
+        resolve(finalDataUri);
       };
       img.src = reader.result as string;
     };

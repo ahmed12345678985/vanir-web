@@ -52,7 +52,7 @@ export default function DestinationsSection() {
   const { data: dbDestinations } = trpc.destinations.list.useQuery();
 
   const destinations = useMemo(() => {
-    if (dbDestinations && dbDestinations.length > 0) {
+    if (Array.isArray(dbDestinations) && dbDestinations.length > 0) {
       return dbDestinations.slice(0, 4).map((d: any) => ({
         image: d.imageUrl || EGYPT_IMG,
         title: d.name,
