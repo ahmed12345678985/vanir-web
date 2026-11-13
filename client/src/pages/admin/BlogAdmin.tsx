@@ -195,37 +195,59 @@ export default function BlogAdmin() {
   };
 
   const buildSeoBatchArticles = (rawTopics: string, category: string, lang: "ar" | "en") => {
-    const lines = rawTopics
+    // Split by newline first; if a line is a long paragraph (>180 chars), split by sentence boundaries (. ! ؟)
+    const rawLines = rawTopics
       .split("\n")
       .map((l) => l.trim())
       .filter(Boolean);
 
-    return lines.map((topic, idx) => {
-      const coverImageUrl = pickTopicCoverImage(topic);
-      const slugBase = generateSlug(topic) || `vanir-seo-guide-${Date.now()}-${idx + 1}`;
+    const lines: Array<{ title: string; seedText: string }> = [];
+    for (const line of rawLines) {
+      if (line.length <= 160) {
+        lines.push({ title: line, seedText: line });
+      } else {
+        const sentences = line
+          .split(/(?<=[.!?؟])\s+/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 10);
+        if (sentences.length > 1) {
+          for (const s of sentences) {
+            const cleanTitle = s.replace(/[.!?؟]+$/, "").slice(0, 140).trim();
+            if (cleanTitle) lines.push({ title: cleanTitle, seedText: s });
+          }
+        } else {
+          const cleanTitle = line.slice(0, 140).trim();
+          lines.push({ title: cleanTitle, seedText: line });
+        }
+      }
+    }
+
+    return lines.map(({ title, seedText }, idx) => {
+      const coverImageUrl = pickTopicCoverImage(title);
+      const slugBase = generateSlug(title) || `vanir-seo-guide-${Date.now()}-${idx + 1}`;
       if (lang === "ar") {
-        const title = topic;
-        const excerpt = `دليل VANIR GROUP الشامل حول ${topic} — برامج VIP مخصصة، طيران خاص، وإقامة فاخرة 5 نجوم بأعلى معايير الخصوصية والاحترافية.`;
+        const excerpt = `دليل VANIR GROUP الشامل حول ${title} — برامج VIP مخصصة، طيران خاص، وإقامة فاخرة 5 نجوم بأعلى معايير الخصوصية والاحترافية.`.slice(0, 280);
         const content = [
-          `# ${topic}`,
+          `# ${title}`,
           "",
-          `تُعد تجربة **${topic}** واحدة من أرقى خدمات السفر السياحي الفاخر التي تقدمها **VANIR GROUP** لعملائها من كبار الشخصيات، العائلات الملكية، ورجال الأعمال حول العالم.`,
+          seedText !== title ? `${seedText}\n` : "",
+          `تُعد تجربة **${title}** واحدة من أرقى خدمات السفر السياحي الفاخر التي تقدمها **VANIR GROUP** لعملائها من كبار الشخصيات، العائلات الملكية، ورجال الأعمال حول العالم.`,
           "",
-          `## لماذا تختار VANIR GROUP في ${topic}؟`,
+          `## لماذا تختار VANIR GROUP في ${title}؟`,
           `- **خصوصية تامة وبروتوكول VIP:** تنسيق كامل من لحظة الوصول عبر صالات كبار الشخصيات وخدمات Fast Track.`,
           `- **طيران خاص وإقامات فاخرة:** توفير طائرات خاصة (Private Jet Charter) وأجنحة رئاسية في أفخم المنتجعات العالمية.`,
           `- **فريق كونسيرج على مدار 24/7:** متابعة مستمرة لكل تفاصيل الرحلة باللغات العربية والإنجليزية والألمانية.`,
           "",
           `## أبرز المزايا والتفاصيل الحصرية`,
-          `عند التخطيط لـ **${topic}**، نحرص في VANIR GROUP على تصميم جدول رحلة مخصص بالكامل يناسب تطلعاتك، بدءاً من النقل بسيارات الليموزين الفاخرة وصولاً إلى الجولات الخاصة بعد ساعات العمل الرسمية.`,
+          `عند التخطيط لـ **${title}**، نحرص في VANIR GROUP على تصميم جدول رحلة مخصص بالكامل يناسب تطلعاتك، بدءاً من النقل بسيارات الليموزين الفاخرة وصولاً إلى الجولات الخاصة بعد ساعات العمل الرسمية.`,
           "",
           `## الأسئلة الشائعة (FAQ)`,
-          `### كيف يمكنني حجز باقة ${topic} عبر VANIR GROUP؟`,
+          `### كيف يمكنني حجز باقة ${title} عبر VANIR GROUP؟`,
           `يمكنك الحجز مباشرة عبر صفحة الحجز الإلكتروني في الموقع أو التواصل مع مستشار السفر الخاص بك لتجهيز عرض مخصص خلال دقائق.`,
           "",
           `### هل تشمل الخدمة الطيران الخاص والاستقبال بالمطار؟`,
           `نعم، نوفر خدمات الطيران الخاص، الاستقبال من باب الطائرة (Airport Fast Track)، والانتقالات الفاخرة.`,
-        ].join("\n");
+        ].filter(Boolean).join("\n");
 
         return {
           title,
@@ -235,35 +257,35 @@ export default function BlogAdmin() {
           category,
           authorName: "Ahmed Roshdi",
           coverImageUrl,
-          tags: [topic, category, "VANIR GROUP", "VIP Travel"],
-          metaTitle: `${title} | VANIR GROUP`,
+          tags: [title.slice(0, 60), category, "VANIR GROUP", "VIP Travel"],
+          metaTitle: `${title} | VANIR GROUP`.slice(0, 70),
           metaDescription: excerpt.slice(0, 155),
-          focusKeyword: topic,
+          focusKeyword: title.slice(0, 80),
           status: "published" as const,
         };
       } else {
-        const title = topic;
-        const excerpt = `Complete VANIR GROUP luxury guide to ${topic} — private aviation, VIP concierge protocol, and bespoke 5-star sanctuary experiences.`;
+        const excerpt = `Complete VANIR GROUP luxury guide to ${title} — private aviation, VIP concierge protocol, and bespoke 5-star sanctuary experiences.`.slice(0, 280);
         const content = [
-          `# ${topic}`,
+          `# ${title}`,
           "",
-          `Discover **${topic}** with **VANIR GROUP**, curated exclusively for discerning travelers, executives, and royal delegations seeking effortless luxury and total discretion.`,
+          seedText !== title ? `${seedText}\n` : "",
+          `Discover **${title}** with **VANIR GROUP**, curated exclusively for discerning travelers, executives, and royal delegations seeking effortless luxury and total discretion.`,
           "",
-          `## Why Choose VANIR GROUP for ${topic}?`,
+          `## Why Choose VANIR GROUP for ${title}?`,
           `- **Sovereign VIP Protocol:** Seamless tarmac transfers, private terminal Fast Track, and dedicated diplomatic coordination.`,
           `- **Private Aviation & Buyouts:** On-demand Gulfstream & Bombardier charters paired with ultra-luxury suite and villa buyouts.`,
           `- **24/7 Multilingual Concierge Desk:** Real-time itinerary execution in English, Arabic, and German.`,
           "",
           `## Tailored Highlights & Execution`,
-          `Every **${topic}** itinerary is custom-engineered from the ground up — combining insider access, after-hours cultural openings, and chauffeured executive fleets.`,
+          `Every **${title}** itinerary is custom-engineered from the ground up — combining insider access, after-hours cultural openings, and chauffeured executive fleets.`,
           "",
           `## Frequently Asked Questions (FAQ)`,
-          `### How do I book ${topic} with VANIR GROUP?`,
+          `### How do I book ${title} with VANIR GROUP?`,
           `Reserve directly through our online Booking Desk or request a bespoke proposal from our Executive Advisory Team.`,
           "",
           `### Are private jet charters and VIP airport transfers included?`,
           `Yes. Every journey can be configured with private jet charters, VIP fast-track clearance, and chauffeured transfers.`,
-        ].join("\n");
+        ].filter(Boolean).join("\n");
 
         return {
           title,
@@ -273,10 +295,10 @@ export default function BlogAdmin() {
           category,
           authorName: "Ahmed Roshdi",
           coverImageUrl,
-          tags: [topic, category, "VANIR GROUP", "Luxury Travel"],
-          metaTitle: `${title} | VANIR GROUP`,
+          tags: [title.slice(0, 60), category, "VANIR GROUP", "Luxury Travel"],
+          metaTitle: `${title} | VANIR GROUP`.slice(0, 70),
           metaDescription: excerpt.slice(0, 155),
-          focusKeyword: topic,
+          focusKeyword: title.slice(0, 80),
           status: "published" as const,
         };
       }

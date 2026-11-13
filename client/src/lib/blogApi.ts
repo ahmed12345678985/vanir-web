@@ -272,23 +272,25 @@ export async function bulkImportBlogPosts(
   for (let i = 0; i < posts.length; i++) {
     const post = posts[i];
     if (!post.title || !post.title.trim()) continue;
-    const cleanTitle = post.title.trim();
+    const cleanTitle = post.title.trim().slice(0, 250);
     const generated = generateSlug(cleanTitle);
-    const cleanSlug = (post.slug?.trim() || generated || `vanir-article-${Date.now()}-${i}`).replace(/^[-]+|[-]+$/g, "");
-    const content = post.content?.trim() || cleanTitle;
-    const excerpt = post.excerpt?.trim() || (content.length > 155 ? content.replace(/[#*_>`-]/g, "").slice(0, 155).trim() + "..." : content);
+    const cleanSlug = (post.slug?.trim() || generated || `vanir-article-${Date.now()}-${i}`)
+      .replace(/^[-]+|[-]+$/g, "")
+      .slice(0, 200);
+    const content = (post.content?.trim() || cleanTitle).slice(0, 95000);
+    const excerpt = (post.excerpt?.trim() || (content.length > 155 ? content.replace(/[#*_>`-]/g, "").slice(0, 155).trim() + "..." : content)).slice(0, 1000);
     const words = content.split(/\s+/).filter(Boolean).length;
     const readingTime = post.readingTime || Math.max(2, Math.ceil(words / 180));
 
     let tagsList: string[] = ["Luxury Travel", "Vanir Group"];
     if (Array.isArray(post.tags)) {
-      tagsList = post.tags.map((s) => String(s).trim()).filter(Boolean);
+      tagsList = post.tags.map((s) => String(s).trim().slice(0, 80)).filter(Boolean).slice(0, 25);
     } else if (typeof post.tags === "string") {
-      tagsList = post.tags.split(",").map((s) => s.trim()).filter(Boolean);
+      tagsList = post.tags.split(",").map((s) => s.trim().slice(0, 80)).filter(Boolean).slice(0, 25);
     }
 
     const rawCover = post.coverImageUrl?.trim() || "/images/The_Nile_River_at_Cairo.jpg";
-    const coverImageUrl = rawCover === "/The_Nile_River_at_Cairo.jpg" ? "/images/The_Nile_River_at_Cairo.jpg" : rawCover;
+    const coverImageUrl = (rawCover === "/The_Nile_River_at_Cairo.jpg" ? "/images/The_Nile_River_at_Cairo.jpg" : rawCover).slice(0, 140000);
 
     const payload: Record<string, any> = {
       title: cleanTitle,
@@ -296,12 +298,12 @@ export async function bulkImportBlogPosts(
       content,
       excerpt,
       coverImageUrl,
-      category: post.category?.trim() || "Luxury Travel",
-      authorName: post.authorName?.trim() || "Ahmed Roshdi",
+      category: (post.category?.trim() || "Luxury Travel").slice(0, 150),
+      authorName: (post.authorName?.trim() || "Ahmed Roshdi").slice(0, 150),
       tags: tagsList.length > 0 ? tagsList : ["Luxury Travel"],
       metaTitle: (post.metaTitle?.trim() || `${cleanTitle} | VANIR GROUP`).slice(0, 70),
       metaDescription: (post.metaDescription?.trim() || excerpt).slice(0, 160),
-      focusKeyword: post.focusKeyword?.trim() || tagsList[0] || cleanTitle.split(" ").slice(0, 4).join(" "),
+      focusKeyword: (post.focusKeyword?.trim() || tagsList[0] || cleanTitle.split(" ").slice(0, 4).join(" ")).slice(0, 120),
       readingTime,
       status: post.status === "draft" || post.status === "archived" ? post.status : "published",
       createdAt: nowIso,
