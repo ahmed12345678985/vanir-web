@@ -717,14 +717,6 @@ export default function CaseStudies() {
               </a>
             </div>
           </motion.div>
-
-          {/* Watermark */}
-          <img
-            src={LOGO_URL}
-            alt="VANIR GROUP Logo"
-            loading="lazy"
-            className="absolute bottom-6 right-6 h-16 opacity-10 pointer-events-none"
-          />
         </div>
       </section>
 

@@ -111,11 +111,6 @@ export default function Contact() {
           />
         </div>
 
-        {/* Watermark */}
-        <div className="absolute bottom-6 right-8 opacity-10 pointer-events-none">
-          <OptimizedImage src={LOGO_URL} alt="VANIR Logo" className="h-16 w-auto" containerClassName="h-16 w-auto" lazy={true} />
-        </div>
-
         <div className="container relative z-10">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -342,14 +337,16 @@ export default function Contact() {
                 Location
               </h2>
 
-              <div className="flex-1 min-h-[280px] sm:min-h-[350px] md:min-h-[400px] border border-white/10 overflow-hidden relative">
+              <div className="flex-1 min-h-[320px] sm:min-h-[380px] md:min-h-[420px] border border-white/10 overflow-hidden relative bg-[#0c0f16]">
                 <iframe
-                  src="https://storage.googleapis.com/maps-solutions-c8ei8tkc1m/commutes/5wns/commutes.html"
+                  src="https://maps.google.com/maps?q=203%20Salah%20Salem%2C%20Heliopolis%2C%20Cairo%2C%20Egypt&t=m&z=15&output=embed&iwloc=near"
                   width="100%"
                   height="100%"
-                  style={{ border: "0", minHeight: "280px" }}
+                  style={{ border: "0", minHeight: "320px" }}
                   loading="lazy"
-                  title="VANIR GROUP Office Location"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="VANIR GROUP Office Location — 203 Salah Salem, Cairo, Egypt"
                 />
                 {/* Gold corner decorations */}
                 <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-[var(--theme-primary)]/50 pointer-events-none z-10" />
@@ -358,18 +355,28 @@ export default function Contact() {
                 <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-[var(--theme-primary)]/50 pointer-events-none z-10" />
               </div>
 
-              <div className="mt-6 bg-[var(--theme-surface)] border border-white/8 p-5 flex items-center gap-4">
-                <div className="w-12 h-12 flex items-center justify-center border border-[var(--theme-primary)]/30 text-[var(--theme-primary)] shrink-0">
-                  <MapPin size={22} />
+              <div className="mt-6 bg-[var(--theme-surface)] border border-white/8 p-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 flex items-center justify-center border border-[var(--theme-primary)]/30 text-[var(--theme-primary)] shrink-0">
+                    <MapPin size={22} />
+                  </div>
+                  <div>
+                    <h4 className="font-[var(--font-display)] text-white font-semibold text-sm mb-1">
+                      VANIR GROUP Headquarters
+                    </h4>
+                    <p className="text-white/50 text-xs">
+                      203 SALAH SALEM ST., CAIRO, EGYPT
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-[var(--font-display)] text-white font-semibold text-sm mb-1">
-                    VANIR GROUP Headquarters
-                  </h4>
-                  <p className="text-white/50 text-xs">
-                    203 SALAHSALEEM, SET, CAIRO, EGYPT
-                  </p>
-                </div>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=203+Salah+Salem+Cairo+Egypt"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-[var(--theme-primary)] hover:underline whitespace-nowrap font-semibold"
+                >
+                  Open in Maps →
+                </a>
               </div>
             </motion.div>
           </div>

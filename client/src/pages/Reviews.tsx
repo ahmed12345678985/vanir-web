@@ -795,7 +795,7 @@ export default function Reviews() {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-3xl sm:text-3xl sm:text-2xl sm:text-2xl sm:text-3xl md:text-4xl lg:text-5xl lg:text-6xl font-[var(--font-display)] text-white"
+            className="text-2xl sm:text-3xl md:text-4xl font-[var(--font-display)] text-white"
           >
             Reviews & Ratings
           </motion.h1>
@@ -803,14 +803,13 @@ export default function Reviews() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
-            className="flex items-center justify-center gap-2 mt-6 text-white/50 text-sm font-[var(--font-body)]"
+            className="flex items-center justify-center gap-2 mt-4 text-white/50 text-sm font-[var(--font-body)]"
           >
             <a href="/" className="hover:text-[var(--theme-primary)] transition-colors">Home</a>
             <span>&gt;</span>
             <span className="text-[var(--theme-primary)]">Reviews</span>
           </motion.div>
         </div>
-        <OptimizedImage src={LOGO_URL} alt="VANIR GROUP Logo" className="h-16 opacity-15" containerClassName="absolute bottom-6 right-6 h-16 pointer-events-none" lazy={true} />
       </section>
 
       {/* Stats Section */}
