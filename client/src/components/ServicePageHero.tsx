@@ -63,7 +63,7 @@ export default function ServicePageHero({
       : 0.62;
 
   return (
-    <section className="relative pt-28 pb-16 md:pt-36 md:pb-24 min-h-[44vh] md:min-h-[52vh] flex items-center overflow-hidden bg-[#07090e] border-b border-[var(--theme-primary)]/20">
+    <section className="relative pt-24 pb-12 md:pt-28 md:pb-16 min-h-[36vh] md:min-h-[42vh] flex items-center overflow-hidden bg-[#07090e] border-b border-[var(--theme-primary)]/20">
       {/* Service-specific background photograph */}
       <img
         src={activeImage}
@@ -85,16 +85,16 @@ export default function ServicePageHero({
             {badge}
           </div>
         )}
-        <h1 className="font-[var(--font-display)] text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight mb-4 drop-shadow-lg">
+        <h1 className="font-[var(--font-display)] text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight leading-tight mb-3 drop-shadow-lg">
           {activeTitle}
         </h1>
-        <div className="flex justify-center items-center my-4">
+        <div className="flex justify-center items-center my-3">
           <div className="w-12 h-[1px] bg-[var(--theme-primary)]" />
           <div className="w-2 h-2 bg-[var(--theme-primary)] rotate-45 mx-3" />
           <div className="w-12 h-[1px] bg-[var(--theme-primary)]" />
         </div>
         {activeSubtitle && (
-          <p className="text-white/85 text-base sm:text-lg md:text-xl max-w-2xl mx-auto leading-relaxed drop-shadow">
+          <p className="text-white/85 text-sm sm:text-base max-w-2xl mx-auto leading-relaxed drop-shadow">
             {activeSubtitle}
           </p>
         )}

@@ -94,7 +94,7 @@ export default function Blog() {
             <span className="font-[var(--font-script)] text-[var(--theme-primary)] text-xl mb-3 block">
               Our Journal
             </span>
-            <h1 className="font-[var(--font-display)] text-3xl sm:text-2xl sm:text-2xl sm:text-3xl md:text-4xl lg:text-5xl lg:text-6xl font-bold text-white mb-6">
+            <h1 className="font-[var(--font-display)] text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-6">
               Travel Blog & Guides
             </h1>
             <p className="text-white/60 text-lg leading-relaxed mb-8">

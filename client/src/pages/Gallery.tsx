@@ -607,7 +607,7 @@ export default function Gallery() {
             transition={{ duration: 0.8 }}
             className="text-center mb-8 sm:mb-12"
           >
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-primary-light)] bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-[var(--theme-primary)] to-[var(--theme-primary-light)] bg-clip-text text-transparent">
               Gallery
             </h1>
             <p className="text-base sm:text-lg md:text-xl text-gray-300 max-w-2xl mx-auto px-2">

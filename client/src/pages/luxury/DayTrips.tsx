@@ -102,7 +102,7 @@ export default function DayTrips() {
               <Crown size={18} className="text-[#D4AF37]" />
               <div className="h-px w-16 bg-[#D4AF37]" />
             </div>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight mb-6 font-[var(--font-display)]">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight mb-6 font-[var(--font-display)]">
               One Day. <span className="text-[#D4AF37]">A Lifetime</span> of Memories.
             </h1>
             <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-8 leading-relaxed">

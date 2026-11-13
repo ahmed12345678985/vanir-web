@@ -61,7 +61,7 @@ export default function MICE() {
       <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden bg-black">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/images/GEN010392.jpg')" }}
+          style={{ backgroundImage: "url('/images/services/service_corporate_travel.jpg')" }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
@@ -71,7 +71,7 @@ export default function MICE() {
               <Briefcase size={18} className="text-[#D4AF37]" />
               <div className="h-px w-16 bg-[#D4AF37]" />
             </div>
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-white tracking-tight mb-6 font-[var(--font-display)]">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight mb-6 font-[var(--font-display)]">
               Events That <span className="text-[#D4AF37]">Command</span> Respect
             </h1>
             <p className="text-lg md:text-xl text-white/80 max-w-2xl mx-auto mb-8 leading-relaxed">

@@ -14,6 +14,15 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import PageMeta from "@/components/PageMeta";
 import {
+  VisaMastercardBadge,
+  VisaLogo,
+  MastercardLogo,
+  AmexLogo,
+  PaypalLogo,
+  ApplePayLogo,
+  GooglePayLogo,
+} from "@/components/PaymentLogos";
+import {
   Calendar, MapPin, Clock, Star, Users, ArrowRight, ArrowLeft,
   Check, Mail, Phone, User, CreditCard, Plane, Shield, Award,
   ChevronDown, ChevronUp, Minus, Plus, X, Heart, Share2, Briefcase,
@@ -917,7 +926,13 @@ function PaymentStep({
                     }`}>{method.label}</p>
                     <p className="text-white/40 text-xs font-[var(--font-body)]">{method.desc}</p>
                   </div>
-                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  <div className="shrink-0 hidden sm:flex items-center mr-1">
+                    {method.id === "card" && <VisaMastercardBadge />}
+                    {method.id === "paypal" && <PaypalLogo className="h-4 w-auto" />}
+                    {method.id === "apple_pay" && <ApplePayLogo className="h-4 w-auto" />}
+                    {method.id === "google_pay" && <GooglePayLogo className="h-4 w-auto" />}
+                  </div>
+                  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
                     paymentData.method === method.id ? "border-[var(--theme-primary)]" : "border-[var(--theme-primary)]/30"
                   }`}>
                     {paymentData.method === method.id && (
@@ -1421,12 +1436,17 @@ function PaymentStep({
             {/* Accepted Cards */}
             <div className="bg-[var(--theme-surface)] border border-white/8 rounded-lg p-4">
               <p className="text-white/40 text-xs font-[var(--font-body)] uppercase tracking-wider mb-3">We Accept</p>
-              <div className="flex items-center gap-3">
-                {["VISA", "MC", "AMEX", "PayPal"].map((card) => (
-                  <div key={card} className="flex-1 bg-[var(--theme-surface)] border border-white/5 rounded py-2 text-center">
-                    <span className="text-[var(--theme-primary)]/60 text-[10px] font-[var(--font-body)] font-bold">{card}</span>
-                  </div>
-                ))}
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="bg-white rounded-md px-2.5 py-1.5 flex items-center justify-center">
+                  <VisaLogo className="h-3.5 w-auto" />
+                </div>
+                <div className="bg-white rounded-md px-2 py-1 flex items-center justify-center">
+                  <MastercardLogo className="h-4 w-auto" />
+                </div>
+                <AmexLogo className="h-6 w-auto" />
+                <PaypalLogo className="h-4 w-auto" />
+                <ApplePayLogo className="h-4 w-auto" />
+                <GooglePayLogo className="h-4 w-auto" />
               </div>
             </div>
 
@@ -1712,7 +1732,7 @@ export default function Booking() {
       <section className="relative h-[35vh] sm:h-[40vh] min-h-[250px] sm:min-h-[300px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
           <img
-            src="/images/Luxury Private Jet Interior with Warm Ambient Elegance ✨.jpeg"
+            src="/images/services/service_custom_itinerary.jpg"
             alt="Vanir Group Private Luxury Booking"
             className="w-full h-full object-cover"
           />

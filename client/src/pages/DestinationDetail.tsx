@@ -210,7 +210,7 @@ export const DESTINATION_PROFILES: Record<string, DestinationProfile> = {
     nameAr: "سويسرا وقمم الألب الملكية",
     country: "Switzerland",
     tagline: "St. Moritz private chalets, Matterhorn heli-skiing, and Lake Geneva private estates.",
-    heroImage: "/images/Luxury Private Jet Interior with Warm Ambient Elegance ✨.jpeg",
+    heroImage: "/images/FS_Punta_Mita.jpg",
     galleryImages: [
       { url: "/images/final_paris_post.png", caption: "Private Alpine Chalet Living Overlooking Pristine Snow Peaks" },
       { url: "/images/Regent-Seven-Seas-Voyager.jpg", caption: "Lake Geneva Private Riva Yacht Cruise" },
@@ -403,11 +403,11 @@ export default function DestinationDetail({ slug }: { slug?: string }) {
               </span>
             </div>
 
-            <h1 className="font-[var(--font-display)] text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-[1.1] max-w-4xl">
+            <h1 className="font-[var(--font-display)] text-2xl sm:text-3xl md:text-4xl font-bold text-white mb-4 leading-[1.15] max-w-3xl">
               {profile.name}
             </h1>
 
-            <p className="text-white/80 text-lg sm:text-xl max-w-3xl leading-relaxed mb-10">
+            <p className="text-white/80 text-sm sm:text-base max-w-2xl leading-relaxed mb-8">
               {profile.tagline}
             </p>
 

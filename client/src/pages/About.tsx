@@ -20,7 +20,7 @@ import type { SubPageHero } from "@/contexts/ThemeColorsProvider";
 
 /* ─── Image URLs ─── */
 const IMAGES = {
-  aboutHero: "/images/wonders of Egypt profile.jpeg",
+  aboutHero: "/images/The_Nile_River_at_Cairo.jpg",
   ceo: "/ahmed-roshdi.png",
   coo: "/images/team/nadia-hassan.jpg",
   marketing: "/images/team/karim-farouk.jpg",

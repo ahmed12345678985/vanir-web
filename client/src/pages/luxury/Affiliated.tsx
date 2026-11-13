@@ -81,7 +81,7 @@ export default function Affiliated() {
               <Globe size={18} className="text-[#D4AF37]" />
               <div className="h-px w-16 bg-[#D4AF37]" />
             </div>
-            <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight mb-6 font-[var(--font-display)]">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight mb-6 font-[var(--font-display)]">
               A Network Built on <span className="text-[#D4AF37]">Excellence</span>
             </h1>
             <p className="text-lg text-white/70 max-w-2xl mx-auto mb-8">
