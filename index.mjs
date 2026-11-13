@@ -3850,7 +3850,7 @@ var PRIORITY_SEO_BLOG_POSTS = [
     metaTitle: "What Does a Luxury Travel Concierge Do? (And Why You Need One) | Vanir Group",
     metaDescription: "Discover what a luxury travel concierge does, how luxury travel concierge services work, what is included in UHNW packages, and why executives rely on Vanir Group.",
     metaKeywords: "what does a luxury travel concierge do, luxury travel concierge service, how luxury travel concierge works, UHNW travel concierge, celebrity travel concierge, Vanir Group",
-    coverImageUrl: "/images/hero-egyptian.jpg",
+    coverImageUrl: "/The_Nile_River_at_Cairo.jpg",
     category: "Destinations",
     tags: [
       "Luxury Travel Concierge",
@@ -8326,7 +8326,7 @@ var DEFAULT_SECTIONS = [
 ];
 var DEFAULT_IMAGES = [
   {
-    src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+    src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
     alt: "Vanir Group luxury travel concierge service and private pyramids tour in Egypt",
     caption: "Exclusive after-hours private access to the Great Pyramids of Giza curated by Vanir Group."
   },
@@ -8364,7 +8364,7 @@ var vanirSeoMatrix = {
     ctaHref: "/contact",
     images: [
       {
-        src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+        src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
         alt: "Vanir Group luxury travel concierge service private jet and pyramids tour",
         caption: "Bespoke luxury travel concierge service and private aviation curated by Vanir Group."
       },
@@ -8498,7 +8498,7 @@ var vanirSeoMatrix = {
         caption: "Vanir Group curating bespoke heritage and aviation journeys since 2010."
       },
       {
-        src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+        src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
         alt: "Private luxury Egypt tours organized by Vanir Travel Group",
         caption: "Exclusive private access to Egypt's most iconic ancient monuments."
       }
@@ -8612,7 +8612,7 @@ var vanirSeoMatrix = {
         caption: "Direct tarmac-side chauffeur transfer from private FBO terminal to aircraft steps."
       },
       {
-        src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+        src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
         alt: "Private jet charter to Egypt pyramids and Red Sea resorts",
         caption: "Seamless private aviation connections from Germany and Europe to Egypt."
       }
@@ -8874,7 +8874,7 @@ var vanirSeoMatrix = {
     ctaHref: "/booking",
     images: [
       {
-        src: "https://vanirgroup.com/images/hero-egyptian.jpg",
+        src: "https://vanirgroup.com/The_Nile_River_at_Cairo.jpg",
         alt: "Luxury Egypt tours private after-hours access to the Great Pyramids of Giza",
         caption: "Private after-hours access to the Great Pyramids of Giza and Sphinx on a Vanir Group luxury Egypt tour."
       },

@@ -46,11 +46,33 @@ const isBadOrLegacyImage = (url?: string): boolean => {
   );
 };
 
+const HERO_SETTINGS_CACHE_KEY = "vanir_hero_settings_cache_v1";
+const HERO_IMAGES_CACHE_KEY = "vanir_hero_images_cache_v1";
+
+function readCachedJson<T>(key: string, fallback: T): T {
+  try {
+    if (typeof window === "undefined") return fallback;
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeCachedJson(key: string, val: unknown): void {
+  try {
+    if (typeof window !== "undefined" && val !== undefined && val !== null) {
+      window.localStorage.setItem(key, JSON.stringify(val));
+    }
+  } catch {}
+}
+
 export default function HeroSection() {
   const sectionRef = useRef<HTMLElement | null>(null);
   const { colors } = useThemeColors();
-  const [heroData, setHeroData] = useState<any>(null);
-  const [heroImages, setHeroImages] = useState<any[]>([]);
+  const [heroData, setHeroData] = useState<any>(() => readCachedJson(HERO_SETTINGS_CACHE_KEY, null));
+  const [heroImages, setHeroImages] = useState<any[]>(() => readCachedJson(HERO_IMAGES_CACHE_KEY, []));
+  const [isHeroReady, setIsHeroReady] = useState<boolean>(() => Boolean(readCachedJson(HERO_SETTINGS_CACHE_KEY, null)));
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Fetch hero data from admin
@@ -74,7 +96,12 @@ export default function HeroSection() {
     if (payload) {
       try {
         const parsed = JSON.parse(payload);
-        setHeroData((prev: any) => ({ ...prev, ...parsed }));
+        setHeroData((prev: any) => {
+          const next = { ...prev, ...parsed };
+          writeCachedJson(HERO_SETTINGS_CACHE_KEY, next);
+          return next;
+        });
+        setIsHeroReady(true);
       } catch (e) {
         console.error("Failed to parse hero data:", e);
       }
@@ -85,7 +112,10 @@ export default function HeroSection() {
     if (savedHeroImages) {
       try {
         const parsed = JSON.parse(savedHeroImages);
-        if (Array.isArray(parsed)) setHeroImages(parsed);
+        if (Array.isArray(parsed)) {
+          setHeroImages(parsed);
+          writeCachedJson(HERO_IMAGES_CACHE_KEY, parsed);
+        }
       } catch (e) {}
     }
   }, [savedHeroImages]);
@@ -93,6 +123,9 @@ export default function HeroSection() {
   // Direct real-time fetch from Firebase Firestore (instant sync across all deployments)
   useEffect(() => {
     let mounted = true;
+    const safetyTimer = setTimeout(() => {
+      if (mounted) setIsHeroReady(true);
+    }, 2500);
     (async () => {
       try {
         const [settingsVal, imagesVal] = await Promise.all([
@@ -103,7 +136,11 @@ export default function HeroSection() {
         if (settingsVal) {
           try {
             const parsed = JSON.parse(settingsVal);
-            setHeroData((prev: any) => ({ ...prev, ...parsed }));
+            setHeroData((prev: any) => {
+              const next = { ...prev, ...parsed };
+              writeCachedJson(HERO_SETTINGS_CACHE_KEY, next);
+              return next;
+            });
           } catch {}
         }
         if (imagesVal) {
@@ -111,14 +148,23 @@ export default function HeroSection() {
             const parsed = JSON.parse(imagesVal);
             if (Array.isArray(parsed) && parsed.length > 0) {
               setHeroImages(parsed);
+              writeCachedJson(HERO_IMAGES_CACHE_KEY, parsed);
             }
           } catch {}
         }
       } catch (err) {
         console.warn("[HeroSection] Direct Firestore sync error:", err);
+      } finally {
+        if (mounted) {
+          clearTimeout(safetyTimer);
+          setIsHeroReady(true);
+        }
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      clearTimeout(safetyTimer);
+    };
   }, []);
 
   // Determine active background display mode:
@@ -200,6 +246,10 @@ export default function HeroSection() {
   // Strict design requirement: clean cinematic hero with ZERO text and ZERO buttons
   const showText = false;
   const showButtons = false;
+  const subtitle = heroData?.subtitle || "";
+  const mainTitle = heroData?.title || "";
+  const btn1Text = heroData?.buttonText1 || "";
+  const btn2Text = heroData?.buttonText2 || "";
 
   const isMobile = useIsMobile();
   const isCustomMobile = isMobile && Boolean(heroData?.mobileMediaUrl) && !isBadOrLegacyImage(heroData?.mobileMediaUrl);
@@ -221,13 +271,14 @@ export default function HeroSection() {
       className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#0A0A0A]"
     >
       {/* ── Background Slider Images / Videos ── */}
+      {isHeroReady ? (
       <AnimatePresence initial={false} mode="wait">
         <motion.div
           key={`slide-${currentIndex}-${activeSlideUrl}`}
-          initial={{ opacity: 0, scale: 1.05 }}
-          animate={{ opacity: 1, scale: 1 }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 1.2, ease: [0.25, 0.46, 0.45, 0.94] }}
+          transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="absolute inset-0 w-full h-full"
         >
           {isVideo ? (
@@ -256,6 +307,9 @@ export default function HeroSection() {
           )}
         </motion.div>
       </AnimatePresence>
+      ) : (
+        <div className="absolute inset-0 w-full h-full bg-[#0A0A0A]" />
+      )}
 
       {/* ── Subtle Luxury Overlays - keeps imagery bright and vivid ── */}
       <div

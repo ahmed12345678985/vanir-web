@@ -11,8 +11,7 @@ import { trpc } from "@/lib/trpc";
 const quickLinks = [
   { label: "Home", href: "/" },
   { label: "About Vanir Group", href: "/about" },
-  { label: "Founder: Ahmed Roshdi", href: "/author/ahmed-roshdi" },
-  { label: "Executive Advisory Board", href: "/team" },
+  { label: "Founder & Executive Team", href: "/team" },
   { label: "Case Studies & Mission Logs", href: "/case-studies" },
   { label: "Verified Client Reviews (4.9★)", href: "/reviews" },
   { label: "Exclusive Offers", href: "/offers" },
@@ -23,7 +22,7 @@ const quickLinks = [
 
 const serviceLinks = [
   { label: "Private Jet Charter (Privatjet)", href: "/private-jet" },
-  { label: "Sovereign Journey Architect", href: "/#sovereign-architect" },
+  { label: "Sovereign Journey Architect", href: "/booking" },
   { label: "Luxury Egypt Tours & Nile Cruises", href: "/destinations/egypt" },
   { label: "5-Star Hotels & Island Buyouts", href: "/hotels" },
   { label: "Curated Luxury Packages", href: "/packages" },

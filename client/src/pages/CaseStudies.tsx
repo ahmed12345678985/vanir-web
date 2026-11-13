@@ -297,9 +297,10 @@ export default function CaseStudies() {
 
       {/* ─── Hero Section ─── */}
       <section className="relative py-28 md:py-36 overflow-hidden">
-        {/* Background pattern */}
+        {/* Background image & pattern */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-b from-[var(--theme-surface)] via-[var(--theme-surface)]/95 to-[var(--theme-surface)]" />
+          <img src="/images/final_cairo_post.png" alt="Case Studies Cairo" className="w-full h-full object-cover opacity-35" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[var(--theme-surface)]/80 via-[var(--theme-surface)]/85 to-[var(--theme-surface)]" />
           <div
             className="absolute inset-0 opacity-[0.03]"
             style={{

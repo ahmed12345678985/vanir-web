@@ -69,7 +69,7 @@ export default function Navbar() {
       label: "Aviation",
       children: [
         { label: "Private Jet Charter", href: "/private-jet" },
-        { label: "Sovereign Journey Architect", href: "/#sovereign-architect" },
+        { label: "Sovereign Journey Architect", href: "/booking" },
         { label: "VIP Airport Fast Track", href: "/fast-track" },
         { label: "Flights Booking Desk", href: "/flights-booking" },
       ],
@@ -99,8 +99,7 @@ export default function Navbar() {
       label: "House of Vanir",
       children: [
         { label: "About Vanir Group", href: "/about" },
-        { label: "Founder: Ahmed Roshdi", href: "/author/ahmed-roshdi" },
-        { label: "Executive Advisory Board", href: "/team" },
+        { label: "Founder & Executive Team", href: "/team" },
         { label: "Case Studies & Mission Logs", href: "/case-studies" },
         { label: "Client Reviews (4.9★)", href: "/reviews" },
         { label: "Visual Gallery", href: "/gallery" },

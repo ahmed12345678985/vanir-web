@@ -210,8 +210,8 @@ export default function Programs() {
         <section ref={heroRef} className="relative pt-28 pb-20 overflow-hidden">
           <div className="absolute inset-0">
             <img
-              src="/images/The_Nile_River_at_Cairo.jpg"
-              alt="Nile Cruise at sunset"
+              src="/images/final_luxor_post.png"
+              alt="Curated Egypt Travel Programs"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-[var(--theme-background)]/80 via-[var(--theme-background)]/60 to-[var(--theme-background)]" />

@@ -255,8 +255,8 @@ export default function Destinations() {
           {/* Background image */}
           <div className="absolute inset-0">
             <img
-              src="/images/The_Nile_River_at_Cairo.jpg"
-              alt="Egypt aerial view"
+              src="/images/egypt-pyramids.png"
+              alt="Luxury Destinations - Pyramids of Giza"
               className="w-full h-full object-cover"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-[var(--theme-background)]/80 via-[var(--theme-background)]/60 to-[var(--theme-background)]" />

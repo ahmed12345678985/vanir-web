@@ -68,11 +68,12 @@ export default function Affiliated() {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative py-36 flex items-center justify-center bg-black border-b border-[#D4AF37]/20">
+      <section className="relative py-36 flex items-center justify-center bg-black border-b border-[#D4AF37]/20 overflow-hidden">
         <div
-          className="absolute inset-0 bg-cover bg-center opacity-20"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1600&q=80')" }}
+          className="absolute inset-0 bg-cover bg-center opacity-45"
+          style={{ backgroundImage: "url('/images/FS_Punta_Mita.jpg')" }}
         />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
             <div className="flex items-center justify-center gap-2 mb-4">

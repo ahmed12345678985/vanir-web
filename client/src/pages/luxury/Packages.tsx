@@ -171,7 +171,7 @@ export default function Packages() {
       <section className="relative min-h-[75vh] flex items-center justify-center overflow-hidden bg-black">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('/images/The_Nile_River_at_Cairo.jpg')" }}
+          style={{ backgroundImage: "url('/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg')" }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">

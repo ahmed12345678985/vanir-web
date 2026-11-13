@@ -92,7 +92,7 @@ export default function DayTrips() {
       <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden bg-black">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: "url('https://images.unsplash.com/photo-1539768942893-daf53e448371?w=1600&q=80')" }}
+          style={{ backgroundImage: "url('/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg')" }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black" />
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">

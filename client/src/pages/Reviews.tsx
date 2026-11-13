@@ -780,7 +780,7 @@ export default function Reviews() {
       <section className="relative h-[35vh] sm:h-[40vh] min-h-[250px] sm:min-h-[300px] flex items-center justify-center overflow-hidden">
         <div
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(/images/The_Nile_River_at_Cairo.jpg)` }}
+          style={{ backgroundImage: `url(/images/Four-Seasons-Hualalai-1.jpeg)` }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--theme-surface)]/70 via-[var(--theme-surface)]/50 to-[var(--theme-surface)]" />
         <div className="relative z-10 text-center">

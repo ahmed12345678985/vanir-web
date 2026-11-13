@@ -17,7 +17,7 @@ import {
   Calendar, MapPin, Clock, Star, Users, ArrowRight, ArrowLeft,
   Check, Mail, Phone, User, CreditCard, Plane, Shield, Award,
   ChevronDown, ChevronUp, Minus, Plus, X, Heart, Share2, Briefcase,
-  Lock, Eye, EyeOff, Wallet, BadgeCheck, CircleDollarSign
+  Lock, Eye, EyeOff, Wallet, BadgeCheck, CircleDollarSign, Smartphone
 } from "lucide-react";
 
 /* ─── Trip Packages Data ─── */
@@ -544,7 +544,7 @@ interface BookingData {
 
 /* ─── Payment Data Interface ─── */
 interface PaymentData {
-  method: "card" | "paypal" | "bank";
+  method: "card" | "paypal" | "apple_pay" | "google_pay" | "bank";
   cardNumber: string;
   cardName: string;
   expiryMonth: string;
@@ -831,7 +831,13 @@ function PaymentStep({
 
     setProcessing(true);
     try {
-      const paymentMethodMap = { card: "credit_card" as const, paypal: "paypal" as const, bank: "bank_transfer" as const };
+      const paymentMethodMap = {
+        card: "credit_card" as const,
+        paypal: "paypal" as const,
+        apple_pay: "credit_card" as const,
+        google_pay: "credit_card" as const,
+        bank: "bank_transfer" as const,
+      };
       const totalPrice = pkg.price * bookingData.guests + (bookingData.roomType === "deluxe" ? 100 : bookingData.roomType === "suite" ? 250 : 0);
       const result = await createBookingMutation.mutateAsync({
         packageName: pkg.title,
@@ -867,9 +873,11 @@ function PaymentStep({
   };
 
   const paymentMethods = [
-    { id: "card" as const, label: "Credit / Debit Card", icon: CreditCard, desc: "Visa, Mastercard, AMEX" },
-    { id: "paypal" as const, label: "PayPal", icon: Wallet, desc: "Pay with your PayPal account" },
-    { id: "bank" as const, label: "Bank Transfer", icon: CircleDollarSign, desc: "Direct bank transfer" },
+    { id: "card" as const, label: "Visa & Mastercard", icon: CreditCard, desc: "Credit / Debit Card — Visa, Mastercard, AMEX" },
+    { id: "paypal" as const, label: "PayPal", icon: Wallet, desc: "Pay fast & securely with your PayPal account" },
+    { id: "apple_pay" as const, label: "Apple Pay", icon: Smartphone, desc: "One-tap express checkout with Apple Pay" },
+    { id: "google_pay" as const, label: "Google Pay", icon: Smartphone, desc: "Fast express checkout with Google Pay" },
+    { id: "bank" as const, label: "Bank Transfer", icon: CircleDollarSign, desc: "Direct wire transfer" },
   ];
 
   return (
@@ -1219,6 +1227,56 @@ function PaymentStep({
               </motion.div>
             )}
 
+            {/* Apple Pay */}
+            {paymentData.method === "apple_pay" && (
+              <motion.div
+                key="apple-pay-form"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="bg-[var(--theme-surface)] border border-white/8 rounded-lg p-6 md:p-8"
+              >
+                <div className="text-center py-8">
+                  <div className="w-20 h-20 rounded-full bg-white/10 border border-white/20 flex items-center justify-center mx-auto mb-6">
+                    <Smartphone size={36} className="text-white" />
+                  </div>
+                  <h4 className="text-xl font-[var(--font-display)] text-white mb-3">Pay with Apple Pay</h4>
+                  <p className="text-white/50 text-sm font-[var(--font-body)] max-w-md mx-auto mb-6">
+                    Complete your reservation instantaneously using Face ID, Touch ID, or Apple Wallet without entering card details.
+                  </p>
+                  <div className="inline-flex items-center gap-2 bg-white/10 border border-white/15 rounded-lg px-4 py-2">
+                    <Lock size={14} className="text-[var(--theme-primary)]" />
+                    <span className="text-white/80 text-xs font-[var(--font-body)]">Encrypted via Apple Pay Tokenization</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Google Pay */}
+            {paymentData.method === "google_pay" && (
+              <motion.div
+                key="google-pay-form"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                className="bg-[var(--theme-surface)] border border-white/8 rounded-lg p-6 md:p-8"
+              >
+                <div className="text-center py-8">
+                  <div className="w-20 h-20 rounded-full bg-[var(--theme-primary)]/10 border border-[var(--theme-primary)]/25 flex items-center justify-center mx-auto mb-6">
+                    <Smartphone size={36} className="text-[var(--theme-primary)]" />
+                  </div>
+                  <h4 className="text-xl font-[var(--font-display)] text-white mb-3">Pay with Google Pay</h4>
+                  <p className="text-white/50 text-sm font-[var(--font-body)] max-w-md mx-auto mb-6">
+                    Authorize your booking quickly using your saved cards in Google Wallet with multi-layer Google security.
+                  </p>
+                  <div className="inline-flex items-center gap-2 bg-[var(--theme-primary)]/10 border border-white/10 rounded-lg px-4 py-2">
+                    <Lock size={14} className="text-[var(--theme-primary)]" />
+                    <span className="text-[var(--theme-primary)] text-xs font-[var(--font-body)]">Protected by Google Pay Security</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
             {/* Bank Transfer */}
             {paymentData.method === "bank" && (
               <motion.div
@@ -1405,9 +1463,13 @@ function ConfirmationStep({
   const totalPrice = pkg.price * bookingData.guests + (bookingData.roomType === "deluxe" ? 100 : bookingData.roomType === "suite" ? 250 : 0);
 
   const paymentMethodLabel = paymentData.method === "card"
-    ? `Card ending in ${paymentData.cardNumber.replace(/\s/g, "").slice(-4)}`
+    ? `Visa / Mastercard ending in ${paymentData.cardNumber.replace(/\s/g, "").slice(-4) || "••••"}`
     : paymentData.method === "paypal"
     ? "PayPal"
+    : paymentData.method === "apple_pay"
+    ? "Apple Pay"
+    : paymentData.method === "google_pay"
+    ? "Google Pay"
     : "Bank Transfer";
 
   return (
@@ -1649,7 +1711,11 @@ export default function Booking() {
       {/* Hero Banner */}
       <section className="relative h-[35vh] sm:h-[40vh] min-h-[250px] sm:min-h-[300px] flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0">
-          <img src="/images/Regent-Seven-Seas-Voyager-Atrium.jpg" alt="" className="w-full h-full object-cover" />
+          <img
+            src="/images/Luxury Private Jet Interior with Warm Ambient Elegance ✨.jpeg"
+            alt="Vanir Group Private Luxury Booking"
+            className="w-full h-full object-cover"
+          />
         </div>
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--theme-surface)]/70 via-[var(--theme-surface)]/50 to-[var(--theme-surface)]" />
         <div className="relative z-10 text-center">
@@ -1679,15 +1745,6 @@ export default function Booking() {
             <span className="text-[var(--theme-primary)]">Booking</span>
           </motion.div>
         </div>
-        {/* Watermark logo */}
-        <OptimizedImage
-          src={LOGO_URL}
-          alt="VANIR GROUP Logo"
-          animation="fade"
-          containerClassName="absolute bottom-6 right-6 h-16 pointer-events-none"
-          className="h-16 opacity-15"
-          lazy={true}
-        />
       </section>
 
       {/* Main Content */}

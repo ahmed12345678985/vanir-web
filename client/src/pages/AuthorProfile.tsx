@@ -87,7 +87,7 @@ export default function AuthorProfile() {
                 <img
                   src="/ahmed-roshdi.png"
                   alt="Ahmed Roshdi — Founder & Chief Executive Officer of Vanir Group"
-                  className="w-full aspect-square object-cover"
+                  className="w-full aspect-square object-cover object-top"
                 />
                 <div className="mt-3 p-3 bg-black/70 border border-white/10 text-center">
                   <span className="text-xs uppercase tracking-widest text-[#D4AF37] font-bold block">
