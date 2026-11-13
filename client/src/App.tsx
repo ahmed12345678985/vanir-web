@@ -103,6 +103,11 @@ function AdminPortal() {
         <Route path="/admin/mobile-app" component={MobileAppAdminHub} />
         <Route path="/admin/destinations" component={DestinationsAdmin} />
         <Route path="/admin/packages" component={AdminPackages} />
+        <Route path="/admin/jets" component={AdminPackages} />
+        <Route path="/admin/yachts" component={AdminPackages} />
+        <Route path="/admin/hotels" component={MobileAppAdminHub} />
+        <Route path="/admin/transfers" component={MobileAppAdminHub} />
+        <Route path="/admin/services" component={MobileAppAdminHub} />
         <Route path="/admin/offers" component={OffersAdmin} />
         <Route path="/admin/blog" component={BlogAdmin} />
         <Route path="/admin/activities" component={ActivitiesAdmin} />
@@ -182,22 +187,39 @@ function Router() {
       <Route path={"/marketing/calendar"} component={ContentCalendar} />
       <Route path={"/components"} component={ComponentShowcase} />
 
-      {/* Luxury Service Pages */}
+      {/* Luxury Service Pages & Dynamic Aliases */}
       <Route path={"/hotels"} component={Hotels} />
-      <Route path={"/day-trips"} component={DayTrips} />
-      <Route path={"/mice"} component={MICEPage} />
+      <Route path={"/luxury/hotels"} component={Hotels} />
+      
       <Route path={"/private-jet"} component={PrivateJet} />
+      <Route path={"/luxury/jets"} component={PrivateJet} />
+      <Route path={"/luxury/private-jet"} component={PrivateJet} />
+      <Route path={"/jets"} component={PrivateJet} />
+
+      <Route path={"/day-trips"} component={DayTrips} />
+      <Route path={"/luxury/yachts"} component={DayTrips} />
+      <Route path={"/luxury/day-trips"} component={DayTrips} />
+      <Route path={"/yachts"} component={DayTrips} />
+
       <Route path={"/fast-track"} component={FastTrack} />
+      <Route path={"/luxury/transfers"} component={FastTrack} />
+      <Route path={"/transfers"} component={FastTrack} />
+
+      <Route path={"/packages"} component={Packages} />
+      <Route path={"/luxury/packages"} component={Packages} />
+      <Route path={"/services/packages"} component={Packages} />
+
+      <Route path={"/mice"} component={MICEPage} />
       <Route path={"/visa"} component={Visa} />
       <Route path={"/esim"} component={ESim} />
       <Route path={"/flights-booking"} component={FlightsBooking} />
       <Route path={"/hotels-booking"} component={HotelsBooking} />
       <Route path={"/tours"} component={Tours} />
+      <Route path={"/luxury/tours"} component={Tours} />
       <Route path={"/insurance"} component={Insurance} />
       <Route path={"/groups"} component={Groups} />
       <Route path={"/news"} component={LuxuryNews} />
       <Route path={"/affiliated"} component={Affiliated} />
-      <Route path={"/packages"} component={Packages} />
 
       {/* Admin Login (outside admin layout) */}
       <Route path="/admin/login" component={AdminLogin} />

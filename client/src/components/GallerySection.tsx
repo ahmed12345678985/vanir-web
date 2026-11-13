@@ -109,7 +109,7 @@ export default function GallerySection() {
 
   // Debug: Log images when they load
   useEffect(() => {
-    if (images.length > 0) {
+    if (Array.isArray(images) && images.length > 0) {
       console.log("[GallerySection] Images loaded successfully:", images.length);
       images.forEach((img: any) => {
         console.log("[GallerySection] Image URL:", {

@@ -95,10 +95,10 @@ const adminMenuItems = [
   // ── الخدمات والتطبيق (APP & SERVICES) ──
   { icon: MonitorSmartphone, label: "مركز كافة الخدمات والتطبيق (14 خدمة)", path: "/admin/mobile-app", group: "services" },
   { icon: Crown, label: "البرامج السياحية (Packages)", path: "/admin/packages", group: "services" },
-  { icon: Compass, label: "الطيران الخاص (Jets)", path: "/luxury/jets", group: "services" },
-  { icon: Compass, label: "اليخوت الفاخرة (Yachts)", path: "/luxury/yachts", group: "services" },
-  { icon: Compass, label: "الفنادق والمنتجعات (Hotels)", path: "/luxury/hotels", group: "services" },
-  { icon: Compass, label: "الليموزين والسيارات (Transfers)", path: "/luxury/transfers", group: "services" },
+  { icon: Compass, label: "الطيران الخاص (Jets)", path: "/admin/jets", group: "services" },
+  { icon: Compass, label: "اليخوت الفاخرة (Yachts)", path: "/admin/yachts", group: "services" },
+  { icon: Compass, label: "الفنادق والمنتجعات (Hotels)", path: "/admin/hotels", group: "services" },
+  { icon: Compass, label: "الليموزين والسيارات (Transfers)", path: "/admin/transfers", group: "services" },
   { icon: Sparkles, label: "المساعد الذكي VIP (AI Studio)", path: "/admin/ai-studio", group: "services" },
 
   // ── العمليات (OPERATIONS) ──

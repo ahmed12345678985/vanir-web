@@ -43,7 +43,7 @@ export default function BlogSection() {
   const { ref, inView } = useInView({ threshold: 0.1 });
   const { data: dbPosts } = trpc.blog.list.useQuery({ limit: 3 });
 
-  const blogs = dbPosts && dbPosts.length > 0
+  const blogs = Array.isArray(dbPosts) && dbPosts.length > 0
     ? dbPosts.map(p => ({
         slug: p.slug,
         image: p.coverImageUrl || EGYPT_IMG,
