@@ -8,6 +8,7 @@ import { useRef, useState, useEffect, useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useThemeColors } from "@/contexts/ThemeColorsProvider";
 import { trpc } from "@/lib/trpc";
+import { getFirestoreSetting } from "@/lib/siteSettingsApi";
 import { applyLuxuryImageFallback } from "@/lib/imageFallback";
 import { useIsMobile } from "@/hooks/useMobile";
 
@@ -70,6 +71,37 @@ export default function HeroSection() {
       } catch (e) {}
     }
   }, [savedHeroImages]);
+
+  // Direct real-time fetch from Firebase Firestore (instant sync across all deployments)
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [settingsVal, imagesVal] = await Promise.all([
+          getFirestoreSetting("hero", "hero_settings"),
+          getFirestoreSetting("hero", "hero_images"),
+        ]);
+        if (!mounted) return;
+        if (settingsVal) {
+          try {
+            const parsed = JSON.parse(settingsVal);
+            setHeroData((prev: any) => ({ ...prev, ...parsed }));
+          } catch {}
+        }
+        if (imagesVal) {
+          try {
+            const parsed = JSON.parse(imagesVal);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setHeroImages(parsed);
+            }
+          } catch {}
+        }
+      } catch (err) {
+        console.warn("[HeroSection] Direct Firestore sync error:", err);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
 
   // Determine active background display mode:
   // "static-image" -> single fixed image, no slider timer, no arrows, no dots

@@ -955,6 +955,22 @@ export default function HeroAdmin() {
                           />
                         </div>
                       </div>
+
+                      {/* Direct Instant Save button right under the image controls */}
+                      <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-3 bg-black/30 p-3 rounded-lg">
+                        <span className="text-[11px] text-[#8892B0]">
+                          {hasChanges ? "⚠️ توجد تعديلات جديدة بانتظار الحفظ" : "✓ الصورة الثابتة محفوظة ومتزامنة بالسحابة"}
+                        </span>
+                        <Button
+                          type="button"
+                          onClick={saveToDb}
+                          disabled={saving}
+                          className="bg-gradient-to-r from-[var(--theme-primary)] to-[#e6c875] text-black hover:opacity-95 font-bold text-xs px-4 py-2 rounded-lg flex items-center gap-2 shadow-[0_2px_12px_rgba(201,168,76,0.3)] cursor-pointer"
+                        >
+                          {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                          <span>{saving ? "جاري النشر في السحابة..." : "حفظ ونشر الصورة فورياً"}</span>
+                        </Button>
+                      </div>
                     </div>
                   )}
 

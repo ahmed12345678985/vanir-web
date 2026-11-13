@@ -17,6 +17,7 @@ import { ThemeColorsProvider } from "./contexts/ThemeColorsProvider";
 import {
   getFirestoreSetting,
   setFirestoreSetting,
+  setManyFirestoreSettings,
   getFirestoreSettingsByCategory,
   uploadBase64Media,
 } from "./lib/siteSettingsApi";
@@ -105,11 +106,16 @@ const trpcClient = trpc.createClient({
           credentials: "include",
         });
 
-        // إذا كان الموقع منشوراً كصفحة ساكنة (Cloudflare Pages) والـ API غير متاح (404/405)
-        // نعترض طلبات gallery.uploadImage و siteSettings وننفذها مباشرة عبر Firebase
-        if (!res.ok || res.status === 404 || res.status === 405) {
-          const inputUrl = typeof input === "string" ? input : (input as Request)?.url || "";
-          
+        const inputUrl = typeof input === "string" ? input : (input as Request)?.url || "";
+        const contentType = res.headers.get("content-type") || "";
+        const isHtmlFallback = contentType.includes("text/html");
+        const isNonJson = !contentType.includes("application/json");
+        const isSiteSettingsRequest =
+          inputUrl.includes("siteSettings.") || inputUrl.includes("gallery.uploadImage");
+
+        // إذا كان الموقع منشوراً كصفحة ساكنة (Cloudflare Pages) والـ API غير متاح (404/405 أو إرجاع HTML من SPA router)
+        // نعترض طلبات gallery.uploadImage و siteSettings وننفذها مباشرة وبكل ثقة عبر Firebase Firestore
+        if (!res.ok || res.status === 404 || res.status === 405 || isHtmlFallback || (isSiteSettingsRequest && isNonJson)) {
           // 1. اعتراض رفع الصور gallery.uploadImage
           if (inputUrl.includes("gallery.uploadImage") && init?.body) {
             try {
@@ -135,7 +141,7 @@ const trpcClient = trpc.createClient({
           }
 
           // 2. اعتراض حفظ الإعدادات siteSettings.set
-          if (inputUrl.includes("siteSettings.set") && init?.body) {
+          if (inputUrl.includes("siteSettings.set") && !inputUrl.includes("siteSettings.setMany") && init?.body) {
             try {
               const bodyStr = typeof init.body === "string" ? init.body : "";
               const parsed = JSON.parse(bodyStr);
@@ -153,11 +159,29 @@ const trpcClient = trpc.createClient({
             }
           }
 
+          // 2b. اعتراض حفظ عدة إعدادات siteSettings.setMany
+          if (inputUrl.includes("siteSettings.setMany") && init?.body) {
+            try {
+              const bodyStr = typeof init.body === "string" ? init.body : "";
+              const parsed = JSON.parse(bodyStr);
+              const dataPayload = parsed["0"]?.json || parsed.json || parsed;
+              const items = dataPayload.items || dataPayload;
+              if (Array.isArray(items)) {
+                await setManyFirestoreSettings(items);
+                return new Response(
+                  JSON.stringify([{ result: { data: { json: { success: true } } } }]),
+                  { status: 200, headers: { "Content-Type": "application/json" } }
+                );
+              }
+            } catch (err) {
+              console.error("[tRPC Interceptor] siteSettings.setMany error:", err);
+            }
+          }
+
           // 3. اعتراض جلب إعداد واحد siteSettings.get
-          if (inputUrl.includes("siteSettings.get")) {
+          if (inputUrl.includes("siteSettings.get") && !inputUrl.includes("siteSettings.getByCategory") && !inputUrl.includes("siteSettings.getPublicCategory")) {
             try {
               const urlObj = new URL(inputUrl, window.location.origin);
-              const batchParam = urlObj.searchParams.get("batch");
               const inputParam = urlObj.searchParams.get("input");
               if (inputParam) {
                 const parsed = JSON.parse(inputParam);
@@ -198,8 +222,7 @@ const trpcClient = trpc.createClient({
             }
           }
 
-          const contentType = res.headers.get("content-type") || "";
-          if (!contentType.includes("application/json")) {
+          if (isNonJson) {
             return new Response(
               JSON.stringify([{ result: { data: { json: null } } }]),
               {
