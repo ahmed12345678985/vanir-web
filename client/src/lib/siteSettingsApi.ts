@@ -211,7 +211,7 @@ async function compressDataUri(
 }
 
 const CLOUDINARY_CLOUD_NAME = "gq1svib6";
-const CLOUDINARY_UPLOAD_PRESET = "vanir";
+const CLOUDINARY_UPLOAD_PRESET = "vanir232";
 
 export async function uploadToCloudinary(
   fileOrDataUri: File | Blob | string,
