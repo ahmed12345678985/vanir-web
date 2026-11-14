@@ -189,66 +189,51 @@ export default function BlogAdmin() {
   const pickTopicCoverImage = (topic: string, idx = 0, usedSet?: Set<string>): string => {
     const t = topic.toLowerCase();
     const diversePool = [
-      "/images/destinations/world_iceland_aurora.jpg",
-      "/images/destinations/world_switzerland_interlaken.jpg",
-      "/images/destinations/world_italy_amalfi.jpg",
-      "/images/destinations/world_greece_mykonos.jpg",
-      "/images/destinations/world_japan_kyoto.jpg",
-      "/images/destinations/world_morocco_marrakech.jpg",
-      "/images/destinations/world_thailand_phi_phi.jpg",
-      "/images/destinations/world_usa_new_york.jpg",
-      "/images/destinations/world_australia_sydney.jpg",
-      "/images/destinations/world_brazil_rio.jpg",
-      "/images/destinations/egypt_siwa_oasis.jpg",
-      "/images/destinations/egypt_aswan_nile.jpg",
-      "/images/destinations/egypt_cairo_moez_street.jpg",
-      "/images/destinations/egypt_luxor_hatshepsut.jpg",
-      "/images/destinations/egypt_abu_simbel.jpg",
-      "/images/destinations/egypt_alexandria_citadel.jpg",
-      "/images/destinations/egypt_dahab_blue_hole.jpg",
-      "/images/destinations/egypt_hurghada_beach.jpg",
-      "/images/destinations/egypt_white_desert.jpg",
-      "/images/services/service_flight_booking.jpg",
-      "/images/services/service_hotel_reservation.jpg",
-      "/images/services/service_custom_itinerary.jpg",
-      "/images/services/service_corporate_travel.jpg",
-      "/images/services/service_transportation.jpg",
-      "/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg",
-      "/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg",
-      "/images/Four-Seasons-Hualalai-1.jpeg",
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=85", // Warm Tropical Beach (Winter Sun)
+      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&q=85", // Dramatic Mountains (Almaty / Nature)
+      "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&q=85", // Starry Night Peaks (Noctourism)
+      "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&q=85", // Scenic Lake & Boat (Slow Travel)
+      "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=85", // Smart Travel Planning
+      "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=85", // Swiss Alps
+      "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=1200&q=85", // Maldives Overwater Villas
+      "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=85", // Luxury Resort Pool
+      "https://images.unsplash.com/photo-1539768942893-daf53e736b68?w=1200&q=85", // Egypt / Nile / Pyramids
+      "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1200&q=85", // Dubai Skyline
+      "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=1200&q=85", // Santorini Coastline
+      "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1200&q=85", // Bali Tropical Sanctuary
+      "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1200&q=85", // Tokyo Skyline
+      "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200&q=85", // Paris
+      "https://images.unsplash.com/photo-1486299267070-83823f5448dd?w=1200&q=85", // London
+      "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=1200&q=85", // Istanbul
+      "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=1200&q=85", // Rome
+      "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=1200&q=85", // 5-Star Hotel Suite
+      "https://images.unsplash.com/photo-1569263979104-865ab7cd8d17?w=1200&q=85", // Luxury Yacht
+      "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=1200&q=85", // Aviation / Flights
+      "https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=1200&q=85", // Grand Hotel Exterior
     ];
 
     let preferred = "";
     // Specific destinations
-    if (/dubai|دبي|إمارات|uae/.test(t)) preferred = "/images/final_dubai_post.png";
-    else if (/cairo|قاهر|أهرام|pyramids|giza|جيزة/.test(t)) preferred = "/images/destinations/egypt_cairo_moez_street.jpg";
-    else if (/luxor|أقصر|الأقصر/.test(t)) preferred = "/images/destinations/egypt_luxor_hatshepsut.jpg";
-    else if (/aswan|أسوان/.test(t)) preferred = "/images/destinations/egypt_aswan_nile.jpg";
-    else if (/alexandria|إسكندرية|اسكندرية/.test(t)) preferred = "/images/destinations/egypt_alexandria_citadel.jpg";
-    else if (/sharm|شرم/.test(t)) preferred = "/images/final_sharm_post.png";
-    else if (/dahab|دهب/.test(t)) preferred = "/images/destinations/egypt_dahab_blue_hole.jpg";
-    else if (/siwa|سيوة/.test(t)) preferred = "/images/destinations/egypt_siwa_oasis.jpg";
-    else if (/marsa|مرسى علم/.test(t)) preferred = "/images/destinations/egypt_marsa_alam_dugong.jpg";
-    else if (/london|لندن/.test(t)) preferred = "/images/final_london_post.png";
-    else if (/paris|باريس/.test(t)) preferred = "/images/final_paris_post.png";
-    else if (/rome|روما|italy|إيطاليا/.test(t)) preferred = "/images/destinations/world_italy_amalfi.jpg";
-    else if (/istanbul|إسطنبول|اسطنبول|تركيا/.test(t)) preferred = "/images/final_istanbul_post.png";
-    else if (/santorini|سانتوريني|يونان|greece/.test(t)) preferred = "/images/destinations/world_greece_mykonos.jpg";
-    else if (/tokyo|طوكيو|japan|يابان/.test(t)) preferred = "/images/destinations/world_japan_kyoto.jpg";
-    else if (/bali|بالي/.test(t)) preferred = "/images/final_bali_post.png";
-    else if (/malaysia|ماليزيا/.test(t)) preferred = "/images/final_malaysia_post.png";
-    else if (/maldives|island|جزر|مالديف/.test(t)) preferred = "/images/FS-Landaa-Giraavaru-Water-Villa-Maldives.jpeg";
+    if (/dubai|دبي|إمارات|uae/.test(t)) preferred = "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?w=1200&q=85";
+    else if (/cairo|قاهر|أهرام|pyramids|giza|جيزة|مصر|egypt|luxor|أقصر|aswan|أسوان/.test(t)) preferred = "https://images.unsplash.com/photo-1539768942893-daf53e736b68?w=1200&q=85";
+    else if (/almaty|ألماتي|ألماني|كازاخستان|kazakhstan/.test(t)) preferred = "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?w=1200&q=85";
+    else if (/london|لندن/.test(t)) preferred = "https://images.unsplash.com/photo-1486299267070-83823f5448dd?w=1200&q=85";
+    else if (/paris|باريس/.test(t)) preferred = "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=1200&q=85";
+    else if (/rome|روما|italy|إيطاليا/.test(t)) preferred = "https://images.unsplash.com/photo-1552832230-c0197dd311b5?w=1200&q=85";
+    else if (/istanbul|إسطنبول|اسطنبول|تركيا/.test(t)) preferred = "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=1200&q=85";
+    else if (/santorini|سانتوريني|يونان|greece/.test(t)) preferred = "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=1200&q=85";
+    else if (/tokyo|طوكيو|japan|يابان/.test(t)) preferred = "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=1200&q=85";
+    else if (/bali|بالي/.test(t)) preferred = "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=1200&q=85";
+    else if (/maldives|island|جزر|مالديف/.test(t)) preferred = "https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=1200&q=85";
     // Travel themes & services
-    else if (/noctourism|night|ليل|ليلي|نجوم|سماء/.test(t)) preferred = "/images/destinations/world_iceland_aurora.jpg";
-    else if (/slow travel|بطيئ|أهل البلد|ثقاف|محلي/.test(t)) preferred = "/images/destinations/world_switzerland_interlaken.jpg";
-    else if (/quiet|escape|calm|crowd|nature|ضوضاء|زحام|هدوء|استجمام|طبيعة/.test(t)) preferred = "/images/destinations/egypt_siwa_oasis.jpg";
-    else if (/jet|flight|aviation|airport|ticket|طائر|طيران|تذاكر|مطار/.test(t)) preferred = "/images/services/service_flight_booking.jpg";
-    else if (/yacht|cruise|nile|sea|يخت|نيل|بحر|كروز/.test(t)) preferred = "/images/Regent-Seven-Seas-Voyager-Pool-Deck.jpg";
-    else if (/hotel|resort|stay|villa|فندق|فنادق|منتجع|إقامة|فيلا/.test(t)) preferred = "/images/services/service_hotel_reservation.jpg";
-    else if (/ai|smart|tech|future|ذكاء|ذكية|تقني|مستقبل/.test(t)) preferred = "/images/destinations/world_japan_kyoto.jpg";
-    else if (/shop|luxury|brand|تسوق|فاخر/.test(t)) preferred = "/images/destinations/world_usa_new_york.jpg";
-    else if (/culture|museum|history|متحف|تاريخ|تراث/.test(t)) preferred = "/images/destinations/egypt_abu_simbel.jpg";
-    else if (/adventure|safari|desert|مغامر|سفاري|صحراء/.test(t)) preferred = "/images/destinations/egypt_white_desert.jpg";
+    else if (/شتاء|دافئة|اقتصادية|winter|warm|beach|شاطئ/.test(t)) preferred = "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=1200&q=85";
+    else if (/noctourism|night|ليل|ليلي|نجوم|سماء/.test(t)) preferred = "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1200&q=85";
+    else if (/slow travel|بطيئ|أهل البلد|ثقاف|محلي/.test(t)) preferred = "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=1200&q=85";
+    else if (/سرية|غير تقليدية|مخفية|جواهر|quiet|escape|calm|crowd|ضوضاء|زحام|هدوء/.test(t)) preferred = "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=1200&q=85";
+    else if (/jet|flight|aviation|airport|ticket|طائر|طيران|تذاكر|مطار/.test(t)) preferred = "https://images.unsplash.com/photo-1569154941061-e231b4725ef1?w=1200&q=85";
+    else if (/yacht|cruise|nile|sea|يخت|نيل|بحر|كروز/.test(t)) preferred = "https://images.unsplash.com/photo-1569263979104-865ab7cd8d17?w=1200&q=85";
+    else if (/hotel|resort|stay|villa|فندق|فنادق|منتجع|إقامة|فيلا/.test(t)) preferred = "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=1200&q=85";
+    else if (/ai|smart|tech|future|ذكاء|ذكية|تقني|مستقبل/.test(t)) preferred = "https://images.unsplash.com/photo-1488646953014-85cb44e25828?w=1200&q=85";
 
     if (preferred && (!usedSet || !usedSet.has(preferred))) {
       usedSet?.add(preferred);
