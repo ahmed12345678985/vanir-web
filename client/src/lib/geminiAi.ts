@@ -1,5 +1,6 @@
 import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai";
 import { getFirebaseApp } from "./firebase-api";
+import { uploadToCloudinary } from "./siteSettingsApi";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 
@@ -25,7 +26,7 @@ export async function generateBlogArticleWithGemini(
   seedText: string,
   category: string,
   lang: "ar" | "en"
-): Promise<{ content: string; excerpt: string }> {
+): Promise<{ content: string; excerpt: string; imageQuery: string }> {
   const prompt =
     lang === "ar"
       ? `أنت كاتب محتوى سياحي محترف وخبير SEO في وكالة السفر الفاخر VANIR GROUP.
@@ -42,8 +43,9 @@ export async function generateBlogArticleWithGemini(
    - 3 إلى 4 أقسام فرعية (##) مع نقاط أو قوائم مرقمة واضحة
    - قسم الأسئلة الشائعة (## الأسئلة الشائعة (FAQ)) بسؤالين وإجابتين مفيدتين (###)
    - خاتمة قصيرة أنيقة تدعو للتواصل مع VANIR GROUP عند الحاجة.
-3. أعد النتيجة بصيغة JSON صالحة فقط بدون أي نص خارج JSON:
-{"excerpt": "ملخص جذاب من 140 إلى 200 حرف", "content": "نص المقالة الكامل بصيغة Markdown"}`
+3. أضف حقل imageQuery يحتوي على 2 إلى 4 كلمات إنجليزية دقيقة تصف أفضل صورة فوتوغرافية سياحية تعبّر عن موضوع المقالة (مثال: "Almaty Kazakhstan mountains" أو "tropical beach resort winter").
+4. أعد النتيجة بصيغة JSON صالحة فقط بدون أي نص خارج JSON:
+{"excerpt": "ملخص جذاب من 140 إلى 200 حرف", "imageQuery": "2-4 english photo keywords", "content": "نص المقالة الكامل بصيغة Markdown"}`
       : `You are an expert luxury travel writer and SEO specialist at VANIR GROUP.
 Write a comprehensive, genuinely informative travel article in English for:
 Title: "${title}"
@@ -58,8 +60,9 @@ Requirements:
    - 3–4 structured H2 sections with bullet/numbered lists
    - ## Frequently Asked Questions (FAQ) with 2 helpful Q&As (###)
    - Brief closing CTA mentioning VANIR GROUP.
-3. Return ONLY valid JSON with no extra text:
-{"excerpt": "140-200 character SEO summary", "content": "full Markdown article"}`;
+3. Include an "imageQuery" field with 2–4 concise English photography search keywords matching this article's visual scene.
+4. Return ONLY valid JSON with no extra text:
+{"excerpt": "140-200 character SEO summary", "imageQuery": "2-4 english photo keywords", "content": "full Markdown article"}`;
 
   const model = getGeminiModel();
   const result = await model.generateContent(prompt);
@@ -75,6 +78,7 @@ Requirements:
           excerpt: String(parsed.excerpt || parsed.content.replace(/[#*_>`-]/g, "").slice(0, 180))
             .trim()
             .slice(0, 280),
+          imageQuery: String(parsed.imageQuery || "luxury travel destination").trim().slice(0, 80),
         };
       }
     } catch {
@@ -85,7 +89,43 @@ Requirements:
   return {
     content: rawText.slice(0, 95000),
     excerpt: rawText.replace(/[#*_>`-]/g, "").slice(0, 180).trim(),
+    imageQuery: "luxury travel destination",
   };
+}
+
+export async function findAndSaveTopicImage(
+  query: string,
+  fallbackUrl: string,
+  usedUrls?: Set<string>
+): Promise<string> {
+  try {
+    const cleanQuery = (query || "luxury travel destination").trim();
+    const apiUrl = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(cleanQuery)}&aspect_ratio=wide&category=photograph&size=large,medium&page_size=10`;
+    const res = await fetch(apiUrl);
+    if (!res.ok) return fallbackUrl;
+    const json = await res.json();
+    const results: Array<{ url?: string; width?: number; height?: number }> = Array.isArray(json?.results) ? json.results : [];
+
+    for (const item of results) {
+      const candidate = item?.url;
+      if (!candidate || !candidate.startsWith("https://")) continue;
+      if (/\.(svg|gif)(\?|$)/i.test(candidate)) continue;
+      if (usedUrls && usedUrls.has(candidate)) continue;
+
+      try {
+        const cloudUrl = await uploadToCloudinary(candidate, "blog_covers");
+        usedUrls?.add(candidate);
+        usedUrls?.add(cloudUrl);
+        return cloudUrl;
+      } catch {
+        // Try next candidate if Cloudinary couldn't fetch this remote URL
+        continue;
+      }
+    }
+  } catch (err) {
+    console.warn("[geminiAi] Openverse/Cloudinary topic image fetch failed, using fallback:", err);
+  }
+  return fallbackUrl;
 }
 
 export async function askGeminiConcierge(

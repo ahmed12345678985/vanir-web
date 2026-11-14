@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit2, Trash2, Search, Eye, Upload, FileText, Sparkles, Layers, Download, CheckCircle2, Loader2, RefreshCw, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ImageUploadField } from "@/components/admin/ImageUploadField";
-import { generateBlogArticleWithGemini } from "@/lib/geminiAi";
+import { generateBlogArticleWithGemini, findAndSaveTopicImage } from "@/lib/geminiAi";
 import {
   listAllBlogPosts,
   saveBlogPost,
@@ -531,9 +531,10 @@ export default function BlogAdmin() {
         return;
       }
 
-      // If SEO Batch mode, enhance each article with real Gemini AI content (fallback to local topic engine on error)
+      // If SEO Batch mode, enhance each article with real Gemini AI content + unique Cloudinary-saved photo
       if (bulkMode === "seo_batch") {
-        toast.info("جاري كتابة المقالات بالذكاء الاصطناعي (Gemini)...");
+        toast.info("جاري كتابة المقالات وتوليد صور مخصصة وحفظها على Cloudinary...");
+        const usedTopicUrls = new Set<string>();
         await Promise.all(
           parsedArticles.map(async (art) => {
             try {
@@ -549,6 +550,13 @@ export default function BlogAdmin() {
                   art.excerpt = aiRes.excerpt;
                   art.metaDescription = aiRes.excerpt.slice(0, 155);
                 }
+              }
+              if (aiRes?.imageQuery) {
+                art.coverImageUrl = await findAndSaveTopicImage(
+                  aiRes.imageQuery,
+                  art.coverImageUrl,
+                  usedTopicUrls
+                );
               }
             } catch (aiErr) {
               console.warn("[BlogAdmin] Gemini fallback to topic engine:", aiErr);
@@ -627,17 +635,23 @@ export default function BlogAdmin() {
         const isArabic = /[\u0600-\u06FF]/.test(cleanTitle);
         let nextContent = art.content;
         let nextExcerpt = art.excerpt;
-        if (hasOldBoilerplate) {
-          try {
-            const aiRes = await generateBlogArticleWithGemini(
-              cleanTitle,
-              cleanTitle,
-              art.category || "Luxury Travel",
-              isArabic ? "ar" : "en"
-            );
+        let finalImg = newImg;
+        try {
+          const aiRes = await generateBlogArticleWithGemini(
+            cleanTitle,
+            cleanTitle,
+            art.category || "Luxury Travel",
+            isArabic ? "ar" : "en"
+          );
+          if (hasOldBoilerplate && aiRes?.content) {
             nextContent = aiRes.content;
-            nextExcerpt = aiRes.excerpt;
-          } catch {
+            nextExcerpt = aiRes.excerpt || nextExcerpt;
+          }
+          if (aiRes?.imageQuery) {
+            finalImg = await findAndSaveTopicImage(aiRes.imageQuery, newImg, usedSet);
+          }
+        } catch {
+          if (hasOldBoilerplate) {
             nextContent = buildTopicArticleBody(cleanTitle, cleanTitle, isArabic ? "ar" : "en");
             nextExcerpt = isArabic
               ? `دليل شامل حول ${cleanTitle} — نصائح عملية، أفضل الوجهات، وأسرار التوفير والتخطيط الذكي لعام 2026.`.slice(0, 280)
@@ -651,7 +665,7 @@ export default function BlogAdmin() {
           slug: art.slug,
           excerpt: nextExcerpt,
           content: nextContent,
-          coverImageUrl: newImg,
+          coverImageUrl: finalImg,
           category: art.category,
           authorName: art.authorName,
           tags: art.tags,
