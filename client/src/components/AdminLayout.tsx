@@ -20,7 +20,8 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
-import { apiBase } from "@/lib/firebase-api";
+import { apiBase, getFirebaseApp } from "@/lib/firebase-api";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
   LayoutDashboard,
@@ -66,6 +67,9 @@ import { Button } from "./ui/button";
 const ADMIN_BOOTSTRAP_EMAILS = [
   "contact@vanirgroup.com",
   "admin@vanirgroup.com",
+  "vip.member@vanirgroup.com",
+  "vanir.concierge@gmail.com",
+  "q2w4115@gmail.com",
   "ahmedroshdi@gmail.com",
   "roshdi@vanirgroup.com",
 ];
@@ -192,6 +196,38 @@ export default function AdminLayout({
     return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
   });
   const { loading, user } = useAuth();
+  const [firebaseAdminCheck, setFirebaseAdminCheck] = useState<{
+    checked: boolean;
+    hasFirebaseUser: boolean;
+    isVerifiedAdmin: boolean;
+  }>({ checked: false, hasFirebaseUser: false, isVerifiedAdmin: false });
+
+  useEffect(() => {
+    const app = getFirebaseApp();
+    if (!app) {
+      setFirebaseAdminCheck({ checked: true, hasFirebaseUser: false, isVerifiedAdmin: false });
+      return;
+    }
+    const auth = getAuth(app);
+    const unsub = onAuthStateChanged(auth, async (fbUser) => {
+      if (!fbUser) {
+        setFirebaseAdminCheck({ checked: true, hasFirebaseUser: false, isVerifiedAdmin: false });
+        return;
+      }
+      try {
+        const tokenRes = await fbUser.getIdTokenResult();
+        const verified = Boolean(tokenRes.claims?.admin === true) || isUserAdmin(fbUser.email);
+        setFirebaseAdminCheck({ checked: true, hasFirebaseUser: true, isVerifiedAdmin: verified });
+      } catch {
+        setFirebaseAdminCheck({
+          checked: true,
+          hasFirebaseUser: true,
+          isVerifiedAdmin: isUserAdmin(fbUser.email),
+        });
+      }
+    });
+    return () => unsub();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_WIDTH_KEY, sidebarWidth.toString());
@@ -223,7 +259,7 @@ export default function AdminLayout({
     }
   }, [loading, user]);
 
-  if (loading) {
+  if (loading || !firebaseAdminCheck.checked) {
     return <DashboardLayoutSkeleton />;
   }
 
@@ -262,7 +298,9 @@ export default function AdminLayout({
     );
   }
 
-  const isAuthorized = user.role === "admin" || isUserAdmin(user.email);
+  const isAuthorized = firebaseAdminCheck.hasFirebaseUser
+    ? firebaseAdminCheck.isVerifiedAdmin
+    : Boolean(user && isUserAdmin(user.email));
   if (!isAuthorized) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[var(--theme-surface)]">

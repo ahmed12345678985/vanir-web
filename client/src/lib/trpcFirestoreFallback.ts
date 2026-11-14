@@ -10,6 +10,8 @@ import {
   where,
   addDoc,
 } from "firebase/firestore";
+import { getAuth, updateProfile as firebaseUpdateProfile } from "firebase/auth";
+import { getFirebaseApp } from "./firebase-api";
 import {
   db,
   getFirestoreSetting,
@@ -107,8 +109,9 @@ export async function executeTrpcFirestoreFallback(
     const fileData = input.fileData || input.base64 || input.data;
     const filename = input.filename || input.name || `upload_${Date.now()}.jpg`;
     const mimeType = input.mimeType || input.contentType || "image/jpeg";
+    const folder = input.purpose === "avatar" ? "avatars" : "gallery";
     if (fileData) {
-      const url = await uploadBase64Media(fileData, filename, mimeType, "gallery");
+      const url = await uploadBase64Media(fileData, filename, mimeType, folder);
       return { handled: true, data: { url, fileKey: filename } };
     }
     throw new Error("No fileData provided for upload");
@@ -529,9 +532,64 @@ export async function executeTrpcFirestoreFallback(
   }
 
   if (procedure === "users.updateProfile") {
-    if (input.id) {
-      await updateInCollection("users", input.id, input);
+    const app = getFirebaseApp();
+    const currentUser = app ? getAuth(app).currentUser : null;
+    const targetUid = String(input.id || currentUser?.uid || "").trim();
+
+    const safePatch: Record<string, any> = {
+      updatedAt: new Date().toISOString(),
+    };
+    if (input.name !== undefined) {
+      const cleanName = String(input.name || "").trim().slice(0, 100);
+      if (cleanName) {
+        safePatch.name = cleanName;
+        safePatch.displayName = cleanName;
+      }
     }
+    if (input.phone !== undefined) {
+      safePatch.phone = input.phone ? String(input.phone).trim().slice(0, 50) : null;
+    }
+    if (input.avatarUrl !== undefined) {
+      const cleanAvatar = input.avatarUrl ? String(input.avatarUrl).slice(0, 145000) : null;
+      safePatch.avatarUrl = cleanAvatar;
+      safePatch.avatar = cleanAvatar;
+    }
+
+    if (targetUid) {
+      await setDoc(doc(db, "users", targetUid), safePatch, { merge: true });
+    }
+
+    if (currentUser) {
+      try {
+        const fbPatch: { displayName?: string; photoURL?: string } = {};
+        if (safePatch.name) fbPatch.displayName = safePatch.name;
+        if (input.avatarUrl === null) {
+          fbPatch.photoURL = "";
+        } else if (typeof safePatch.avatarUrl === "string" && safePatch.avatarUrl.startsWith("http") && safePatch.avatarUrl.length <= 2000) {
+          fbPatch.photoURL = safePatch.avatarUrl;
+        }
+        if (Object.keys(fbPatch).length > 0) {
+          await firebaseUpdateProfile(currentUser, fbPatch);
+        }
+      } catch {
+        // Ignore Firebase Auth photoURL length errors if avatar is a data URI
+      }
+    }
+
+    try {
+      const storedRaw = localStorage.getItem("vanir-client-auth-user");
+      if (storedRaw) {
+        const stored = JSON.parse(storedRaw);
+        const updatedStored = {
+          ...stored,
+          ...(safePatch.name ? { name: safePatch.name } : {}),
+          ...(input.phone !== undefined ? { phone: safePatch.phone } : {}),
+          ...(input.avatarUrl !== undefined ? { avatarUrl: safePatch.avatarUrl } : {}),
+        };
+        localStorage.setItem("vanir-client-auth-user", JSON.stringify(updatedStored));
+      }
+    } catch {}
+
     return { handled: true, data: { success: true } };
   }
 

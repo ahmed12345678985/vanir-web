@@ -22,6 +22,9 @@ const EGYPT_IMAGE = "https://images.unsplash.com/photo-1569154941061-e231b4725ef
 const ADMIN_BOOTSTRAP_EMAILS = [
   "contact@vanirgroup.com",
   "admin@vanirgroup.com",
+  "vip.member@vanirgroup.com",
+  "vanir.concierge@gmail.com",
+  "q2w4115@gmail.com",
   "ahmedroshdi@gmail.com",
   "roshdi@vanirgroup.com",
 ];
