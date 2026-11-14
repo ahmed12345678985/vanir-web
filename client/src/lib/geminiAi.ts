@@ -93,6 +93,35 @@ Requirements:
   };
 }
 
+export function buildImageSearchQuery(title: string): string {
+  const t = title.toLowerCase();
+  if (/أقصر|luxor/.test(t)) return "Luxor temple Egypt Nile";
+  if (/أسوان|aswan/.test(t)) return "Aswan Nile River felucca Egypt";
+  if (/دهب|dahab/.test(t)) return "Dahab Red Sea Egypt beach";
+  if (/شرم|sharm/.test(t)) return "Sharm El Sheikh Red Sea resort";
+  if (/سيوة|siwa/.test(t)) return "Siwa Oasis desert Egypt";
+  if (/قاهرة|أهرام|cairo|pyramids/.test(t)) return "Pyramids of Giza Cairo Egypt";
+  if (/إسكندرية|اسكندرية|alexandria/.test(t)) return "Alexandria Mediterranean coast Egypt";
+  if (/ألماتي|كازاخستان|almaty|kazakhstan/.test(t)) return "Almaty Kazakhstan snowy mountains lake";
+  if (/دبي|dubai/.test(t)) return "Dubai Marina skyline luxury";
+  if (/صحة|نفسية|استجمام|wellness|spa/.test(t)) return "luxury spa wellness nature retreat";
+  if (/شتاء|دافئة|winter|warm/.test(t)) return "warm tropical beach sunset resort";
+  if (/سرية|مخفية|غير تقليدية|hidden|secret/.test(t)) return "hidden paradise coastal cliff village";
+  if (/ليلية|noctourism|نجوم|night/.test(t)) return "starry night sky desert camp";
+  if (/بطيئة|slow travel/.test(t)) return "scenic European lake village morning";
+  if (/ذكاء|اصطناعي|تخطيط|ai|smart/.test(t)) return "traveler planning trip map laptop";
+  if (/طيران|تذاكر|flight|jet/.test(t)) return "private jet luxury cabin window clouds";
+  if (/فنادق|فندق|hotel|resort/.test(t)) return "5 star luxury hotel infinity pool";
+  if (/يخت|بحر|yacht|cruise/.test(t)) return "luxury superyacht Mediterranean sea";
+  if (/باريس|paris/.test(t)) return "Paris Eiffel Tower sunset";
+  if (/لندن|london/.test(t)) return "London Thames River skyline";
+  if (/إسطنبول|اسطنبول|istanbul/.test(t)) return "Istanbul Bosphorus mosque sunset";
+  if (/روما|إيطاليا|rome|italy/.test(t)) return "Rome Colosseum Italy sunset";
+  if (/سانتوريني|santorini/.test(t)) return "Santorini white domes sea sunset";
+  if (/مالديف|maldives/.test(t)) return "Maldives overwater bungalow turquoise";
+  return "scenic luxury travel destination landscape";
+}
+
 export async function findAndSaveTopicImage(
   query: string,
   fallbackUrl: string,
@@ -100,7 +129,7 @@ export async function findAndSaveTopicImage(
 ): Promise<string> {
   try {
     const cleanQuery = (query || "luxury travel destination").trim();
-    const apiUrl = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(cleanQuery)}&aspect_ratio=wide&category=photograph&size=large,medium&page_size=10`;
+    const apiUrl = `https://api.openverse.org/v1/images/?q=${encodeURIComponent(cleanQuery)}&aspect_ratio=wide&category=photograph&size=large,medium&page_size=12`;
     const res = await fetch(apiUrl);
     if (!res.ok) return fallbackUrl;
     const json = await res.json();
@@ -113,17 +142,21 @@ export async function findAndSaveTopicImage(
       if (usedUrls && usedUrls.has(candidate)) continue;
 
       try {
-        const cloudUrl = await uploadToCloudinary(candidate, "blog_covers");
+        const cloudUrl = await Promise.race([
+          uploadToCloudinary(candidate, "blog_covers"),
+          new Promise<string>((_, reject) => setTimeout(() => reject(new Error("timeout")), 8000)),
+        ]);
         usedUrls?.add(candidate);
         usedUrls?.add(cloudUrl);
         return cloudUrl;
       } catch {
-        // Try next candidate if Cloudinary couldn't fetch this remote URL
-        continue;
+        // If Cloudinary cannot fetch this external host, still use the fresh Openverse HTTPS photo!
+        usedUrls?.add(candidate);
+        return candidate;
       }
     }
   } catch (err) {
-    console.warn("[geminiAi] Openverse/Cloudinary topic image fetch failed, using fallback:", err);
+    console.warn("[geminiAi] Openverse topic image fetch failed, using fallback:", err);
   }
   return fallbackUrl;
 }

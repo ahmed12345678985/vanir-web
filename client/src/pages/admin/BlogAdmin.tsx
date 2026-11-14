@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit2, Trash2, Search, Eye, Upload, FileText, Sparkles, Layers, Download, CheckCircle2, Loader2, RefreshCw, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ImageUploadField } from "@/components/admin/ImageUploadField";
-import { generateBlogArticleWithGemini, findAndSaveTopicImage } from "@/lib/geminiAi";
+import { generateBlogArticleWithGemini, findAndSaveTopicImage, buildImageSearchQuery } from "@/lib/geminiAi";
 import {
   listAllBlogPosts,
   saveBlogPost,
@@ -537,6 +537,7 @@ export default function BlogAdmin() {
         const usedTopicUrls = new Set<string>();
         await Promise.all(
           parsedArticles.map(async (art) => {
+            let imageQuery = buildImageSearchQuery(String(art.title));
             try {
               const aiRes = await generateBlogArticleWithGemini(
                 String(art.title),
@@ -552,15 +553,16 @@ export default function BlogAdmin() {
                 }
               }
               if (aiRes?.imageQuery) {
-                art.coverImageUrl = await findAndSaveTopicImage(
-                  aiRes.imageQuery,
-                  art.coverImageUrl,
-                  usedTopicUrls
-                );
+                imageQuery = aiRes.imageQuery;
               }
             } catch (aiErr) {
               console.warn("[BlogAdmin] Gemini fallback to topic engine:", aiErr);
             }
+            art.coverImageUrl = await findAndSaveTopicImage(
+              imageQuery,
+              art.coverImageUrl,
+              usedTopicUrls
+            );
           })
         );
       }
@@ -621,57 +623,68 @@ export default function BlogAdmin() {
   const handleAssignDiverseImages = async () => {
     if (!articles.length) return;
     setIsRefreshingImages(true);
+    toast.info(`جاري تحديث صور ومحتوى ${articles.length} مقالة وحفظها على Cloudinary...`);
     try {
       const usedSet = new Set<string>();
       let updated = 0;
-      for (let i = 0; i < articles.length; i++) {
-        const art = articles[i];
-        const cleanTitle = art.title.replace(/^[\s•\-\*▪◦●\d.)]+/, "").trim() || art.title;
-        const newImg = pickTopicCoverImage(`${cleanTitle} ${art.excerpt || ""}`, i, usedSet);
-        const hasOldBoilerplate =
-          !art.content ||
-          art.content.includes("واحدة من أرقى خدمات السفر السياحي الفاخر التي تقدمها") ||
-          art.content.includes("curated exclusively for discerning travelers");
-        const isArabic = /[\u0600-\u06FF]/.test(cleanTitle);
-        let nextContent = art.content;
-        let nextExcerpt = art.excerpt;
-        let finalImg = newImg;
-        try {
-          const aiRes = await generateBlogArticleWithGemini(
-            cleanTitle,
-            cleanTitle,
-            art.category || "Luxury Travel",
-            isArabic ? "ar" : "en"
-          );
-          if (hasOldBoilerplate && aiRes?.content) {
-            nextContent = aiRes.content;
-            nextExcerpt = aiRes.excerpt || nextExcerpt;
-          }
-          if (aiRes?.imageQuery) {
-            finalImg = await findAndSaveTopicImage(aiRes.imageQuery, newImg, usedSet);
-          }
-        } catch {
-          if (hasOldBoilerplate) {
-            nextContent = buildTopicArticleBody(cleanTitle, cleanTitle, isArabic ? "ar" : "en");
-            nextExcerpt = isArabic
-              ? `دليل شامل حول ${cleanTitle} — نصائح عملية، أفضل الوجهات، وأسرار التوفير والتخطيط الذكي لعام 2026.`.slice(0, 280)
-              : `Complete 2026 travel guide to ${cleanTitle} — top destinations, insider tips, and smart planning strategies.`.slice(0, 280);
-          }
-        }
+      const batchSize = 3;
+      for (let start = 0; start < articles.length; start += batchSize) {
+        const slice = articles.slice(start, start + batchSize);
+        await Promise.all(
+          slice.map(async (art, offset) => {
+            const i = start + offset;
+            const cleanTitle = art.title.replace(/^[\s•\-\*▪◦●\d.)]+/, "").trim() || art.title;
+            const newImg = pickTopicCoverImage(`${cleanTitle} ${art.excerpt || ""}`, i, usedSet);
+            const hasOldBoilerplate =
+              !art.content ||
+              art.content.includes("واحدة من أرقى خدمات السفر السياحي الفاخر التي تقدمها") ||
+              art.content.includes("curated exclusively for discerning travelers");
 
-        await saveBlogPost({
-          id: art.id,
-          title: cleanTitle,
-          slug: art.slug,
-          excerpt: nextExcerpt,
-          content: nextContent,
-          coverImageUrl: finalImg,
-          category: art.category,
-          authorName: art.authorName,
-          tags: art.tags,
-          status: art.status,
-        });
-        updated++;
+            const isArabic = /[\u0600-\u06FF]/.test(cleanTitle);
+            let nextContent = art.content;
+            let nextExcerpt = art.excerpt;
+            let imageQuery = buildImageSearchQuery(cleanTitle);
+
+            try {
+              const aiRes = await generateBlogArticleWithGemini(
+                cleanTitle,
+                cleanTitle,
+                art.category || "Luxury Travel",
+                isArabic ? "ar" : "en"
+              );
+              if (hasOldBoilerplate && aiRes?.content) {
+                nextContent = aiRes.content;
+                nextExcerpt = aiRes.excerpt || nextExcerpt;
+              }
+              if (aiRes?.imageQuery) {
+                imageQuery = aiRes.imageQuery;
+              }
+            } catch {
+              if (hasOldBoilerplate) {
+                nextContent = buildTopicArticleBody(cleanTitle, cleanTitle, isArabic ? "ar" : "en");
+                nextExcerpt = isArabic
+                  ? `دليل شامل حول ${cleanTitle} — نصائح عملية، أفضل الوجهات، وأسرار التوفير والتخطيط الذكي لعام 2026.`.slice(0, 280)
+                  : `Complete 2026 travel guide to ${cleanTitle} — top destinations, insider tips, and smart planning strategies.`.slice(0, 280);
+              }
+            }
+
+            const finalImg = await findAndSaveTopicImage(imageQuery, newImg, usedSet);
+
+            await saveBlogPost({
+              id: art.id,
+              title: cleanTitle,
+              slug: art.slug,
+              excerpt: nextExcerpt,
+              content: nextContent,
+              coverImageUrl: finalImg,
+              category: art.category,
+              authorName: art.authorName,
+              tags: art.tags,
+              status: art.status,
+            });
+            updated++;
+          })
+        );
       }
       toast.success(`تم تحديث الصور والمحتوى الفعلي لـ ${updated} مقالة بنجاح!`);
       await loadArticles();
