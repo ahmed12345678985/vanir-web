@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { getAuth, updateProfile as firebaseUpdateProfile } from "firebase/auth";
 import { getFirebaseApp } from "./firebase-api";
+import { askGeminiConcierge } from "./geminiAi";
 import {
   db,
   getFirestoreSetting,
@@ -661,6 +662,17 @@ export async function executeTrpcFirestoreFallback(
       await deleteInCollection(input.collection, input.id);
     }
     return { handled: true, data: { success: true } };
+  }
+
+  // ─── 13. Firebase AI Logic (Gemini Public Concierge) ───────
+  if (procedure === "aiCommand.publicChat") {
+    const message = String(input?.message || "").trim();
+    const history = Array.isArray(input?.history) ? input.history : [];
+    if (!message) {
+      return { handled: true, data: { reply: "Please enter a message." } };
+    }
+    const reply = await askGeminiConcierge(message, history);
+    return { handled: true, data: { reply } };
   }
 
   return { handled: false };

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Plus, Edit2, Trash2, Search, Eye, Upload, FileText, Sparkles, Layers, Download, CheckCircle2, Loader2, RefreshCw, Image as ImageIcon } from "lucide-react";
 import { toast } from "sonner";
 import { ImageUploadField } from "@/components/admin/ImageUploadField";
+import { generateBlogArticleWithGemini } from "@/lib/geminiAi";
 import {
   listAllBlogPosts,
   saveBlogPost,
@@ -530,6 +531,32 @@ export default function BlogAdmin() {
         return;
       }
 
+      // If SEO Batch mode, enhance each article with real Gemini AI content (fallback to local topic engine on error)
+      if (bulkMode === "seo_batch") {
+        toast.info("جاري كتابة المقالات بالذكاء الاصطناعي (Gemini)...");
+        await Promise.all(
+          parsedArticles.map(async (art) => {
+            try {
+              const aiRes = await generateBlogArticleWithGemini(
+                String(art.title),
+                String(art.title),
+                seoCategory,
+                seoLang
+              );
+              if (aiRes?.content) {
+                art.content = aiRes.content;
+                if (aiRes.excerpt) {
+                  art.excerpt = aiRes.excerpt;
+                  art.metaDescription = aiRes.excerpt.slice(0, 155);
+                }
+              }
+            } catch (aiErr) {
+              console.warn("[BlogAdmin] Gemini fallback to topic engine:", aiErr);
+            }
+          })
+        );
+      }
+
       // Standardize fields
       const usedBulkImages = new Set<string>();
       const formatted = parsedArticles.map((art, idx) => ({
@@ -598,14 +625,25 @@ export default function BlogAdmin() {
           art.content.includes("واحدة من أرقى خدمات السفر السياحي الفاخر التي تقدمها") ||
           art.content.includes("curated exclusively for discerning travelers");
         const isArabic = /[\u0600-\u06FF]/.test(cleanTitle);
-        const nextContent = hasOldBoilerplate
-          ? buildTopicArticleBody(cleanTitle, cleanTitle, isArabic ? "ar" : "en")
-          : art.content;
-        const nextExcerpt = hasOldBoilerplate
-          ? isArabic
-            ? `دليل شامل حول ${cleanTitle} — نصائح عملية، أفضل الوجهات، وأسرار التوفير والتخطيط الذكي لعام 2026.`.slice(0, 280)
-            : `Complete 2026 travel guide to ${cleanTitle} — top destinations, insider tips, and smart planning strategies.`.slice(0, 280)
-          : art.excerpt;
+        let nextContent = art.content;
+        let nextExcerpt = art.excerpt;
+        if (hasOldBoilerplate) {
+          try {
+            const aiRes = await generateBlogArticleWithGemini(
+              cleanTitle,
+              cleanTitle,
+              art.category || "Luxury Travel",
+              isArabic ? "ar" : "en"
+            );
+            nextContent = aiRes.content;
+            nextExcerpt = aiRes.excerpt;
+          } catch {
+            nextContent = buildTopicArticleBody(cleanTitle, cleanTitle, isArabic ? "ar" : "en");
+            nextExcerpt = isArabic
+              ? `دليل شامل حول ${cleanTitle} — نصائح عملية، أفضل الوجهات، وأسرار التوفير والتخطيط الذكي لعام 2026.`.slice(0, 280)
+              : `Complete 2026 travel guide to ${cleanTitle} — top destinations, insider tips, and smart planning strategies.`.slice(0, 280);
+          }
+        }
 
         await saveBlogPost({
           id: art.id,
