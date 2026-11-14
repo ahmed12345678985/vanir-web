@@ -195,27 +195,83 @@ export default function Destinations() {
 
   const { data: dbDestinations } = trpc.destinations.list.useQuery();
 
+  const toEnglishLabel = (val: string, fallback = ""): string => {
+    const raw = (val || "").trim();
+    if (!raw) return fallback;
+    const arMap: Record<string, string> = {
+      "دبي": "Dubai",
+      "الإمارات": "UAE",
+      "القاهرة": "Cairo",
+      "القاهرة والجيزة": "Cairo & Giza",
+      "الجيزة": "Giza",
+      "الأقصر": "Luxor",
+      "أسوان": "Aswan",
+      "شرم الشيخ": "Sharm El Sheikh",
+      "الغردقة": "Hurghada",
+      "الإسكندرية": "Alexandria",
+      "اسكندرية": "Alexandria",
+      "واحة سيوة": "Siwa Oasis",
+      "سيوة": "Siwa Oasis",
+      "دهب": "Dahab",
+      "مرسى علم": "Marsa Alam",
+      "مصر": "Egypt",
+      "جزر المالديف": "Maldives",
+      "المالديف": "Maldives",
+      "موناكو والريفييرا": "Monaco & French Riviera",
+      "موناكو": "Monaco",
+      "سويسرا وزيورخ": "Switzerland & Zurich",
+      "سويسرا": "Switzerland",
+      "زيورخ": "Zurich",
+      "باريس": "Paris",
+      "فرنسا": "France",
+      "لندن": "London",
+      "إسطنبول": "Istanbul",
+      "اسطنبول": "Istanbul",
+      "تركيا": "Turkey",
+      "سانتوريني": "Santorini",
+      "اليونان": "Greece",
+      "بالي": "Bali",
+      "إندونيسيا": "Indonesia",
+      "تايلاند": "Thailand",
+      "طوكيو": "Tokyo",
+      "اليابان": "Japan",
+      "إيطاليا": "Italy",
+      "روما": "Rome",
+    };
+    if (arMap[raw]) return arMap[raw];
+    // If string contains Arabic characters and wasn't in exact map, try partial match or use fallback
+    if (/[\u0600-\u06FF]/.test(raw)) {
+      for (const [arKey, enVal] of Object.entries(arMap)) {
+        if (raw.includes(arKey)) return enVal;
+      }
+      return fallback || "Luxury Destination";
+    }
+    return raw;
+  };
+
   const allDestinations: Destination[] = useMemo(() => {
     if (!dbDestinations || dbDestinations.length === 0) {
       return destinations;
     }
     const mappedDb: Destination[] = dbDestinations.map((d: any) => ({
       id: d.id,
-      name: d.name || "",
+      name: toEnglishLabel(d.nameEn || d.name || "", "Luxury Destination"),
       nameAr: d.nameAr || d.name || "",
-      country: d.country || d.location || "Egypt",
+      country: toEnglishLabel(d.countryEn || d.country || d.location || "Egypt", "Egypt"),
       region: (d.region || "egypt") as "egypt" | "middle-east" | "europe" | "asia",
-      description: d.description || "",
+      description: /[\u0600-\u06FF]/.test(d.description || "")
+        ? "Curated sovereign luxury sanctuary with private VIP concierge & bespoke arrangements."
+        : (d.description || ""),
       image: d.imageUrl || d.image || "/images/final_cairo_post.png",
       rating: parseFloat(d.rating) || 5.0,
       reviews: d.reviews || 120,
       highlights: Array.isArray(d.highlights)
-        ? d.highlights
+        ? d.highlights.filter((h: string) => !/[\u0600-\u06FF]/.test(String(h)))
         : typeof d.highlights === "string"
-          ? d.highlights.split(",").map((s: string) => s.trim()).filter(Boolean)
+          ? d.highlights.split(",").map((s: string) => s.trim()).filter((s: string) => Boolean(s) && !/[\u0600-\u06FF]/.test(s))
           : [],
       priceFrom: d.pricePerPerson ? (String(d.pricePerPerson).startsWith("$") ? String(d.pricePerPerson) : `$${d.pricePerPerson}`) : "$299",
-      duration: d.duration || "3-5 Days",
+      duration: /[\u0600-\u06FF]/.test(d.duration || "") ? "3-5 Days" : (d.duration || "3-5 Days"),
       featured: d.featured ?? true,
     }));
 
@@ -487,7 +543,7 @@ export default function Destinations() {
                         <h3 className="font-[var(--font-display)] text-lg font-semibold text-white group-hover:text-[var(--theme-primary)] transition-colors">
                           {dest.name}
                         </h3>
-                        <span className="text-white/30 text-xs">{dest.nameAr}</span>
+                        <span className="text-white/40 text-xs">{dest.country}</span>
                       </div>
                       <span className="text-[var(--theme-primary)] font-[var(--font-display)] text-lg font-bold">
                         {dest.priceFrom}
