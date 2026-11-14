@@ -269,11 +269,165 @@ export default function BlogAdmin() {
     return diversePool[idx % diversePool.length];
   };
 
+  const buildTopicArticleBody = (title: string, seedText: string, lang: "ar" | "en") => {
+    const t = `${title} ${seedText}`.toLowerCase();
+
+    if (lang === "ar") {
+      let intro = seedText && seedText !== title ? `${seedText}\n\n` : "";
+      let sections: string[] = [];
+      let faq1Q = `ما هو أفضل وقت لتجربة ${title}؟`;
+      let faq1A = `يُفضل التخطيط قبل موعد السفر بـ 4 إلى 8 أسابيع للاستفادة من أفضل أسعار الطيران وتوافر الفنادق، مع اختيار المواسم المعتدلة (الربيع أو الخريف أو الشتاء الدافئ).`;
+      let faq2Q = `كيف يمكنني حجز رحلتي بأفضل سعر وجودة؟`;
+      let faq2A = `يمكنك مقارنة مواعيد السفر المرنة أو التواصل مع فريق VANIR GROUP لتجهيز برنامج متكامل يشمل الطيران والإقامة والتنقلات بأفضل قيمة.`;
+
+      if (/شتاء|دافئة|اقتصادية|winter|warm|budget/.test(t)) {
+        intro += `إذا كنت تبحث عن الهروب من برد الشتاء القارس دون إنفاق ميزانية ضخمة، فإن عام 2026 يقدم خيارات رائعة تجمع بين الشمس الدافئة، التجارب الثقافية الأصيلة، والتكاليف المناسبة.`;
+        sections = [
+          `## أبرز الوجهات الدافئة في الشتاء بميزانية اقتصادية`,
+          `1. **أسوان والأقصر (مصر):** طقس مشمس معتدل نهاراً (22–26°م)، رحلات نيلية ساحرة، ومعابد تاريخية بتكلفة إقامة وتنقل مناسبة جداً مقارنة بأوروبا.`,
+          `2. **دهب وشرم الشيخ:** مياه البحر الأحمر الدافئة طوال العام، أنشطة الغوص والسنوركلينج، وإقامات متنوعة تناسب كل الميزانيات.`,
+          `3. **مراكش وأكادير (المغرب):** أسواق تراثية، أجواء دافئة، وتكلفة طعام وإقامة اقتصادية مع طيران مباشر من أغلب العواصم العربية.`,
+          `4. **مسقط وصلالة (عُمان):** طبيعة خلابة، شواطئ هادئة، وأجواء شتوية معتدلة بعيداً عن الازدحام.`,
+          `5. **تايلاند وماليزيا (بانكوك، كوالالمبور):** موسم الجفاف في الشتاء يجعلها مثالية للاستكشاف بأسعار فنادق 4 و5 نجوم منافسة جداً.`,
+          `## نصائح ذهبية لتوفير 30% من ميزانية الشتاء`,
+          `- احجز تذاكر الطيران قبل السفر بـ 6 أسابيع واختر الرحلات في منتصف الأسبوع (الثلاثاء والأربعاء).`,
+          `- اختر الفنادق القريبة من المواصلات أو وسط المدينة لتقليل تكاليف التنقل اليومي.`,
+          `- اجمع بين الإقامة الاقتصادية والتجارب المحلية مثل الأسواق الشعبية والجولات الحرة.`,
+        ];
+        faq1Q = `ما هي أرخص وجهة دافئة في الشتاء للمسافر العربي؟`;
+        faq1A = `تُعد أسوان، دهب، ومراكش من أكثر الوجهات الدافئة توفيراً من حيث تكلفة الطيران والإقامة والطعام مع طقس شتوي مشمس ومثالي.`;
+      } else if (/ألماتي|ألماني|كازاخستان|kazakhstan|almaty/.test(t)) {
+        intro += `أصبحت **ألماتي في كازاخستان** واحدة من أسرع الوجهات الصاعدة جذباً للمسافرين العرب، بفضل طبيعتها الجبلية الخلابة، سهولة الدخول بدون تعقيدات، وتكاليفها الاقتصادية مقارنة بالوجهات الأوروبية.`;
+        sections = [
+          `## أهم المعالم السياحية التي لا تفوتها في ألماتي`,
+          `1. **بحيرة ألماتي الكبرى (Big Almaty Lake):** بحيرة فيروزية محاطة بجبال تيان شان الشاهقة على ارتفاع 2500 متر.`,
+          `2. **منتجع شيمبولاك للتزلج (Shymbulak):** يبعد 25 دقيقة فقط عن وسط المدينة، ويوفر تلفريك وإطلالات ثلجية مذهلة طوال الشتاء والربيع.`,
+          `3. **تلة كوك توبي (Kok-Tobe):** أفضل مكان لمشاهدة غروب الشمس وبانوراما المدينة بالكامل.`,
+          `4. **وادي تشارين (Charyn Canyon):** يُلقب بـ "جراند كانيون آسيا" ويبعد نحو 3 ساعات في رحلة يومية مذهلة.`,
+          `## التكلفة المتوقعة وأفضل وقت للزيارة`,
+          `- **الميزانية اليومية:** تتراوح بين 50 إلى 90 دولاراً شاملة الإقامة الفندقية الجيدة والمواصلات والمطاعم.`,
+          `- **أفضل وقت:** من مايو إلى سبتمبر للطبيعة الخضراء والبحيرات، ومن ديسمبر إلى مارس لعشاق الثلوج والتزلج.`,
+        ];
+        faq1Q = `هل تحتاج كازاخستان إلى فيزا مسبقة؟`;
+        faq1A = `تمنح كازاخستان إعفاءً من التأشيرة أو تسهيلات دخول إلكترونية للعديد من الجنسيات العربية لمدة تصل إلى 30 يوماً، ويُفضل التأكد من جواز السفر قبل السفر.`;
+      } else if (/سرية|غير تقليدية|مخفية|جواهر|hidden|secret|offbeat/.test(t)) {
+        intro += `مع تزايد الزحام في المدن السياحية الكلاسيكية، يتجه المسافرون الأذكياء في 2026 لاكتشاف وجهات بديلة أقل ازدحاماً وأكثر أصالة وهدوءاً.`;
+        sections = [
+          `## 5 وجهات سياحية مخفية تستحق الزيارة قبل الجميع`,
+          `1. **واحة سيوة (مصر):** بحيرات الملح، العيون الكبريتية، وفنادق الطين البيئية وسط صحراء هادئة وسماء صافية.`,
+          `2. **جورجيا (كازبيجي وميستيا):** قرى جبلية خضراء وقمم قوقازية ساحرة بعيداً عن صخب المدن الكبرى.`,
+          `3. **ألبانيا (الريفييرا الألبانية):** شواطئ فيروزية تنافس اليونان وإيطاليا بنصف التكلفة تقريباً وبدون زحام.`,
+          `4. **الجبل الأخضر (سلطنة عُمان):** مدرجات جبلية، طقس بارد صيفاً، ومنتجعات جبلية معزولة.`,
+          `5. **جزر الأزور (البرتغال):** طبيعة بركانية خضراء وبحيرات في قلب المحيط الأطلسي لعشاق الهدوء.`,
+          `## كيف تستفيد من السفر إلى الوجهات غير التقليدية؟`,
+          `- استمتع بأسعار فنادق وتجارب أقل بنسبة 35% إلى 50% من المدن الشهيرة.`,
+          `- اختبر الثقافة المحلية الحقيقية وتناول الطعام في المطاعم العائلية الأصيلة.`,
+        ];
+      } else if (/ذكاء|الاصطناعي|الذكية|تقنيات|ai|smart/.test(t)) {
+        intro += `غيّر الذكاء الاصطناعي طريقة تخطيط الرحلات بالكامل؛ لم يعد المسافر بحاجة لقضاء أيام في مقارنة المواقع، بل يمكنه بناء جدول رحلة متكامل ومقارنة الأسعار خلال دقائق.`;
+        sections = [
+          `## كيف تستخدم الذكاء الاصطناعي لتخطيط رحلتك بذكاء؟`,
+          `1. **توليد جدول يومي مخصص:** اطلب من أدوات الذكاء الاصطناعي خطة بالساعات حسب اهتماماتك (تاريخ، تسوق، طبيعة، عائلة) وميزانيتك.`,
+          `2. **مراقبة وتتبع أسعار الطيران:** استخدم خوارزميات التنبؤ بالأسعار لتحديد أفضل يوم للشراء وتوفير حتى 25% من قيمة التذكرة.`,
+          `3. **الترجمة الفورية والتواصل:** التطبيقات الذكية تترجم القوائم واللافتات والمحادثات الصوتية فوراً في أي دولة.`,
+          `4. **المساعدة الذكية في الفنادق والوجهات:** مثل خدمة **AI Concierge** في موقعنا التي ترشح لك الوجهة والبرنامج الأنسب خلال ثوانٍ.`,
+          `## أخطاء يجب تجنبها عند الاعتماد على الذكاء الاصطناعي`,
+          `- راجع دائماً مواعيد فتح المتاحف وأيام الإجازات الرسمية يدوياً قبل الحجز.`,
+          `- تأكد من سياسات التأشيرة والأمتعة من المصادر الرسمية لشركة الطيران.`,
+        ];
+      } else if (/تذاكر|طيران|فنادق|أرخص|flight|ticket|hotel|cheap/.test(t)) {
+        intro += `الحصول على أفضل أسعار تذاكر الطيران والفنادق لا يعتمد على الحظ، بل على توقيت الحجز واستخدام الأدوات والخطوات الصحيحة.`;
+        sections = [
+          `## 6 خطوات عملية لحجز أرخص تذاكر الطيران والفنادق`,
+          `1. **فعّل تنبيهات الأسعار مبكراً:** احجز الرحلات الدولية قبل 6 إلى 10 أسابيع، وتجنب الحجز في اللحظة الأخيرة إلا في العروض المفاجئة.`,
+          `2. **المرونة في أيام السفر:** السفر يومي الثلاثاء والأربعاء أو في الرحلات الليلية غالباً ما يكون أرخص من عطلة نهاية الأسبوع.`,
+          `3. **استفد من مواسم الكتف (Shoulder Season):** السفر قبل أو بعد ذروة الموسم بشهر يمنحك طقساً رائعاً وبأسعار أقل بنسبة 40%.`,
+          `4. **تواصل مع الفندق أو احجز باقات مجمعة:** دمج الطيران مع الفندق والانتقالات يوفر خصومات لا تظهر في الحجز المنفصل.`,
+          `5. **قارن المطارات البديلة:** أحياناً يكون الهبوط في مطار قريب أرخص بكثير من المطار الرئيسي للمدينة.`,
+        ];
+      } else if (/ليلية|noctourism|حرارة|نجوم|night/.test(t)) {
+        intro += `أصبحت **السياحة الليلية (Noctourism)** واحدة من أقوى صيحات السفر في 2026؛ حيث يفضّل المسافرون استكشاف المدن والمعالم بعد غروب الشمس للاستمتاع بالهدوء وتجنب حرارة النهار.`;
+        sections = [
+          `## أبرز تجارب السياحة الليلية حول العالم`,
+          `1. **جولات المتاحف والمعالم المضاءة ليلاً:** زيارات مسائية هادئة للمتاحف الكبرى والقلاع التاريخية بدون طوابير النهار.`,
+          `2. **مراقبة النجوم والشفق القطبي:** رحلات صحراوية في سيوة والصحراء البيضاء بمصر، أو مشاهدة الأورورا في أيسلندا والنرويج.`,
+          `3. **الأسواق الليلية والمطاعم المفتوحة:** استكشاف ثقافة الطعام في أسواق مراكش، القاهرة، وبانكوك في أجواء ليلية منعشة.`,
+          `4. **الرحلات البحرية والنيلية الليلية:** عشاء على متن يخت أو باخرة نيلية مع إطلالات المدينة المضاءة.`,
+        ];
+      } else if (/بطيئة|slow travel|أهل البلد|ضوضاء|زحام|هدوء|crowd|quiet/.test(t)) {
+        intro += `بدلاً من الركض بين 5 مدن في أسبوع واحد، يدعو مفهوم **السياحة البطيئة (Slow Travel)** والهروب من الزحام إلى البقاء فترة أطول في مكان واحد، وتقليل التكاليف، وعيش التجربة كأهل البلد.`;
+        sections = [
+          `## كيف تعيش تجربة السياحة البطيئة بأقل تكلفة؟`,
+          `1. **اختر حياً سكنياً محلياً:** الإقامة بعيداً بـ 15 دقيقة عن المركز السياحي تمنحك هدوءاً حقيقياً وأسعاراً أقل بـ 35%.`,
+          `2. **استخدم المواصلات العامة والمشي:** اكتشف الشوارع الجانبية، المقاهي المحلية، والأسواق الأسبوعية على طريقتك الخاصة.`,
+          `3. **قلل عدد التنقلات:** التركيز على مدينة أو مدينتين يقلل تكاليف القطارات والطيران الداخلي ويزيد من استمتاعك.`,
+          `4. **سافر خارج أوقات الذروة:** استمتع بالمعالم والطبيعة في الصباح الباكر أو في المواسم الهادئة بعيداً عن الزحام.`,
+        ];
+      } else if (/طائرة خاصة|طائرات خاصة|يخت|يخوت|vip|concierge|fast track|private jet|yacht/.test(t)) {
+        intro += `تُعد خدمات **${title}** ركيزة أساسية في تجربة السفر الفاخر لرجال الأعمال وكبار الشخصيات الباحثين عن الخصوصية التامة وسرعة الإنجاز.`;
+        sections = [
+          `## مزايا الخدمة الحصرية عبر VANIR GROUP`,
+          `- **طيران خاص ويخوت فاخرة:** تنسيق رحلات Private Jet Charter واليخوت الخاصة وفق جدولك الزمني الدقيق.`,
+          `- **بروتوكول VIP في المطارات:** استقبال من باب الطائرة وإنهاء إجراءات الجوازات عبر صالات كبار الشخصيات (Fast Track).`,
+          `- **فريق كونسيرج 24/7:** متابعة مستمرة باللغات العربية والإنجليزية والألمانية لتنفيذ كافة طلباتك الفورية.`,
+        ];
+      } else {
+        intro += `يُعد موضوع **${title}** من أبرز المواضيع التي يبحث عنها المسافرون في 2026 للتخطيط لرحلة ناجحة تجمع بين المتعة، التنظيم الذكي، وأفضل قيمة مقابل التكلفة.`;
+        sections = [
+          `## دليل عملي للتخطيط لـ ${title}`,
+          `1. **تحديد الموعد والميزانية مسبقاً:** الحجز المبكر قبل 4 إلى 8 أسابيع يضمن لك أفضل الخيارات في الطيران والإقامة.`,
+          `2. **اختيار الموقع المناسب للإقامة:** احرص على القرب من المعالم الرئيسية أو محطات المواصلات لتوفير الوقت والمجهود.`,
+          `3. **موازنة الجدول اليومي:** اجمع بين زيارة المعالم الشهيرة وأوقات الاسترخاء لاكتشاف التجارب المحلية الأصيلة.`,
+          `4. **الاستعانة بمستشار سفر موثوق:** لتجنب أي مفاجآت في التأشيرات أو التنقلات والاستفادة من الباقات المصممة خصيصاً لك.`,
+        ];
+      }
+
+      return [
+        `# ${title}`,
+        "",
+        intro,
+        "",
+        ...sections,
+        "",
+        `## الأسئلة الشائعة (FAQ)`,
+        `### ${faq1Q}`,
+        faq1A,
+        "",
+        `### ${faq2Q}`,
+        faq2A,
+        "",
+        `---`,
+        `> هل تخطط لرحلتك القادمة؟ تواصل مع فريق **VANIR GROUP** للحصول على برنامج سفر مخصص يناسب ميزانيتك وتطلعاتك.`,
+      ].join("\n");
+    } else {
+      const intro = seedText && seedText !== title
+        ? `${seedText}\n\nExplore our comprehensive 2026 travel guide to **${title}**, featuring practical tips, curated recommendations, and smart booking strategies.`
+        : `Explore our comprehensive 2026 travel guide to **${title}**, featuring practical tips, curated recommendations, and smart booking strategies.`;
+      return [
+        `# ${title}`,
+        "",
+        intro,
+        "",
+        `## Key Highlights & Practical Tips`,
+        `1. **Book Early & Stay Flexible:** Booking 6–8 weeks ahead and choosing mid-week departures helps reduce airfare and hotel costs significantly.`,
+        `2. **Prioritize Authentic Experiences:** Balance iconic landmarks with hidden local neighborhoods, seasonal cuisine, and crowd-free hours.`,
+        `3. **Optimize Your Itinerary:** Group nearby attractions together to minimize transit time and maximize relaxation.`,
+        "",
+        `## Frequently Asked Questions (FAQ)`,
+        `### When is the best time to plan ${title}?`,
+        `Shoulder seasons (spring and autumn) or warm winter months offer the best balance of pleasant weather, availability, and value.`,
+        "",
+        `### Can VANIR GROUP arrange a tailored itinerary?`,
+        `Yes — our concierge desk designs customized itineraries including flights, curated hotels, private transfers, and VIP assistance.`,
+      ].join("\n");
+    }
+  };
+
   const buildSeoBatchArticles = (rawTopics: string, category: string, lang: "ar" | "en") => {
-    // Split by newline first; if a line is a long paragraph (>180 chars), split by sentence boundaries (. ! ؟)
+    const cleanBullet = (s: string) => s.replace(/^[\s•\-\*▪◦●\d.)]+/, "").trim();
     const rawLines = rawTopics
       .split("\n")
-      .map((l) => l.trim())
+      .map((l) => cleanBullet(l))
       .filter(Boolean);
 
     const lines: Array<{ title: string; seedText: string }> = [];
@@ -283,7 +437,7 @@ export default function BlogAdmin() {
       } else {
         const sentences = line
           .split(/(?<=[.!?؟])\s+/)
-          .map((s) => s.trim())
+          .map((s) => cleanBullet(s))
           .filter((s) => s.length > 10);
         if (sentences.length > 1) {
           for (const s of sentences) {
@@ -301,30 +455,9 @@ export default function BlogAdmin() {
     return lines.map(({ title, seedText }, idx) => {
       const coverImageUrl = pickTopicCoverImage(seedText || title, idx, usedImages);
       const slugBase = generateSlug(title) || `vanir-seo-guide-${Date.now()}-${idx + 1}`;
+      const content = buildTopicArticleBody(title, seedText, lang);
       if (lang === "ar") {
-        const excerpt = `دليل VANIR GROUP الشامل حول ${title} — برامج VIP مخصصة، طيران خاص، وإقامة فاخرة 5 نجوم بأعلى معايير الخصوصية والاحترافية.`.slice(0, 280);
-        const content = [
-          `# ${title}`,
-          "",
-          seedText !== title ? `${seedText}\n` : "",
-          `تُعد تجربة **${title}** واحدة من أرقى خدمات السفر السياحي الفاخر التي تقدمها **VANIR GROUP** لعملائها من كبار الشخصيات، العائلات الملكية، ورجال الأعمال حول العالم.`,
-          "",
-          `## لماذا تختار VANIR GROUP في ${title}؟`,
-          `- **خصوصية تامة وبروتوكول VIP:** تنسيق كامل من لحظة الوصول عبر صالات كبار الشخصيات وخدمات Fast Track.`,
-          `- **طيران خاص وإقامات فاخرة:** توفير طائرات خاصة (Private Jet Charter) وأجنحة رئاسية في أفخم المنتجعات العالمية.`,
-          `- **فريق كونسيرج على مدار 24/7:** متابعة مستمرة لكل تفاصيل الرحلة باللغات العربية والإنجليزية والألمانية.`,
-          "",
-          `## أبرز المزايا والتفاصيل الحصرية`,
-          `عند التخطيط لـ **${title}**، نحرص في VANIR GROUP على تصميم جدول رحلة مخصص بالكامل يناسب تطلعاتك، بدءاً من النقل بسيارات الليموزين الفاخرة وصولاً إلى الجولات الخاصة بعد ساعات العمل الرسمية.`,
-          "",
-          `## الأسئلة الشائعة (FAQ)`,
-          `### كيف يمكنني حجز باقة ${title} عبر VANIR GROUP؟`,
-          `يمكنك الحجز مباشرة عبر صفحة الحجز الإلكتروني في الموقع أو التواصل مع مستشار السفر الخاص بك لتجهيز عرض مخصص خلال دقائق.`,
-          "",
-          `### هل تشمل الخدمة الطيران الخاص والاستقبال بالمطار؟`,
-          `نعم، نوفر خدمات الطيران الخاص، الاستقبال من باب الطائرة (Airport Fast Track)، والانتقالات الفاخرة.`,
-        ].filter(Boolean).join("\n");
-
+        const excerpt = `دليل شامل حول ${title} — نصائح عملية، أفضل الوجهات، وأسرار التوفير والتخطيط الذكي لعام 2026.`.slice(0, 280);
         return {
           title,
           slug: slugBase,
@@ -333,36 +466,14 @@ export default function BlogAdmin() {
           category,
           authorName: "Ahmed Roshdi",
           coverImageUrl,
-          tags: [title.slice(0, 60), category, "VANIR GROUP", "VIP Travel"],
+          tags: [title.slice(0, 60), category, "دليل السفر 2026", "VANIR GROUP"],
           metaTitle: `${title} | VANIR GROUP`.slice(0, 70),
           metaDescription: excerpt.slice(0, 155),
           focusKeyword: title.slice(0, 80),
           status: "published" as const,
         };
       } else {
-        const excerpt = `Complete VANIR GROUP luxury guide to ${title} — private aviation, VIP concierge protocol, and bespoke 5-star sanctuary experiences.`.slice(0, 280);
-        const content = [
-          `# ${title}`,
-          "",
-          seedText !== title ? `${seedText}\n` : "",
-          `Discover **${title}** with **VANIR GROUP**, curated exclusively for discerning travelers, executives, and royal delegations seeking effortless luxury and total discretion.`,
-          "",
-          `## Why Choose VANIR GROUP for ${title}?`,
-          `- **Sovereign VIP Protocol:** Seamless tarmac transfers, private terminal Fast Track, and dedicated diplomatic coordination.`,
-          `- **Private Aviation & Buyouts:** On-demand Gulfstream & Bombardier charters paired with ultra-luxury suite and villa buyouts.`,
-          `- **24/7 Multilingual Concierge Desk:** Real-time itinerary execution in English, Arabic, and German.`,
-          "",
-          `## Tailored Highlights & Execution`,
-          `Every **${title}** itinerary is custom-engineered from the ground up — combining insider access, after-hours cultural openings, and chauffeured executive fleets.`,
-          "",
-          `## Frequently Asked Questions (FAQ)`,
-          `### How do I book ${title} with VANIR GROUP?`,
-          `Reserve directly through our online Booking Desk or request a bespoke proposal from our Executive Advisory Team.`,
-          "",
-          `### Are private jet charters and VIP airport transfers included?`,
-          `Yes. Every journey can be configured with private jet charters, VIP fast-track clearance, and chauffeured transfers.`,
-        ].filter(Boolean).join("\n");
-
+        const excerpt = `Complete 2026 travel guide to ${title} — top destinations, insider tips, and smart planning strategies.`.slice(0, 280);
         return {
           title,
           slug: slugBase,
@@ -495,13 +606,28 @@ export default function BlogAdmin() {
       let updated = 0;
       for (let i = 0; i < articles.length; i++) {
         const art = articles[i];
-        const newImg = pickTopicCoverImage(`${art.title} ${art.excerpt || ""}`, i, usedSet);
+        const cleanTitle = art.title.replace(/^[\s•\-\*▪◦●\d.)]+/, "").trim() || art.title;
+        const newImg = pickTopicCoverImage(`${cleanTitle} ${art.excerpt || ""}`, i, usedSet);
+        const hasOldBoilerplate =
+          !art.content ||
+          art.content.includes("واحدة من أرقى خدمات السفر السياحي الفاخر التي تقدمها") ||
+          art.content.includes("curated exclusively for discerning travelers");
+        const isArabic = /[\u0600-\u06FF]/.test(cleanTitle);
+        const nextContent = hasOldBoilerplate
+          ? buildTopicArticleBody(cleanTitle, cleanTitle, isArabic ? "ar" : "en")
+          : art.content;
+        const nextExcerpt = hasOldBoilerplate
+          ? isArabic
+            ? `دليل شامل حول ${cleanTitle} — نصائح عملية، أفضل الوجهات، وأسرار التوفير والتخطيط الذكي لعام 2026.`.slice(0, 280)
+            : `Complete 2026 travel guide to ${cleanTitle} — top destinations, insider tips, and smart planning strategies.`.slice(0, 280)
+          : art.excerpt;
+
         await saveBlogPost({
           id: art.id,
-          title: art.title,
+          title: cleanTitle,
           slug: art.slug,
-          excerpt: art.excerpt,
-          content: art.content,
+          excerpt: nextExcerpt,
+          content: nextContent,
           coverImageUrl: newImg,
           category: art.category,
           authorName: art.authorName,
@@ -510,7 +636,7 @@ export default function BlogAdmin() {
         });
         updated++;
       }
-      toast.success(`تم تحديث وتوزيع صور متنوعة لـ ${updated} مقالة بنجاح!`);
+      toast.success(`تم تحديث الصور والمحتوى الفعلي لـ ${updated} مقالة بنجاح!`);
       await loadArticles();
     } catch (e: any) {
       console.error("Assign diverse images error:", e);
