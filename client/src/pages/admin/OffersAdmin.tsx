@@ -5,17 +5,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, Search, Calendar } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Calendar, Sparkles, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { ImageUploadField } from "@/components/admin/ImageUploadField";
 import { formatDate } from "@/lib/formatDate";
 import { buildMutationCallbacks } from "@/hooks/useAdminCrud";
+import { generateStructuredJsonWithGemini, findAndSaveTopicImage } from "@/lib/geminiAi";
 
 export default function OffersAdmin() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -101,6 +103,65 @@ export default function OffersAdmin() {
             <DialogHeader>
               <DialogTitle>{editingId ? "تعديل العرض" : "إضافة عرض جديد"}</DialogTitle>
             </DialogHeader>
+            <div className="flex items-center justify-between gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+              <span className="text-xs text-muted-foreground">اكتب عنوان العرض أو الوجهة لتوليد باقي التفاصيل بالذكاء الاصطناعي</span>
+              <Button
+                type="button"
+                size="sm"
+                disabled={aiGenerating}
+                onClick={async () => {
+                  const seed = formData.title || formData.destination || "عرض سياحي فاخر في مصر والشرق الأوسط";
+                  setAiGenerating(true);
+                  try {
+                    const data = await generateStructuredJsonWithGemini<{
+                      title: string;
+                      destination: string;
+                      description: string;
+                      discountValue: string;
+                      promoCode: string;
+                      totalSpots: string;
+                      badgeText: string;
+                      imageQuery: string;
+                    }>(
+                      `Create a luxury travel offer for VANIR GROUP based on: "${seed}".
+Return JSON with keys:
+- title (compelling Arabic offer title)
+- destination (Arabic destination name, e.g. "شرم الشيخ ودهب")
+- description (persuasive Arabic offer description, 2-3 sentences)
+- discountValue (numeric string, e.g. "20")
+- promoCode (uppercase promo code, e.g. "VANIR20")
+- totalSpots (numeric string, e.g. "15")
+- badgeText (short Arabic badge, e.g. "عرض حصري")
+- imageQuery (3-5 English keywords for a real scenic photo)`
+                    );
+                    let nextImage = formData.imageUrl;
+                    if (!nextImage && data.imageQuery) {
+                      nextImage = await findAndSaveTopicImage(data.imageQuery, "");
+                    }
+                    setFormData((prev) => ({
+                      ...prev,
+                      title: data.title || prev.title,
+                      destination: data.destination || prev.destination,
+                      description: data.description || prev.description,
+                      discountValue: String(data.discountValue || prev.discountValue || "15"),
+                      promoCode: data.promoCode || prev.promoCode || "VANIRVIP",
+                      totalSpots: String(data.totalSpots || prev.totalSpots || "20"),
+                      badgeText: data.badgeText || prev.badgeText || "عرض خاص",
+                      imageUrl: nextImage || prev.imageUrl,
+                    }));
+                    toast.success("تم توليد العرض بواسطة Gemini AI");
+                  } catch (err: any) {
+                    toast.error("فشل التوليد: " + (err?.message || "Unknown error"));
+                  } finally {
+                    setAiGenerating(false);
+                  }
+                }}
+                className="gap-1.5 shrink-0"
+              >
+                {aiGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                توليد بالذكاء الاصطناعي Gemini
+              </Button>
+            </div>
             <div className="space-y-4">
               <Input
                 placeholder="عنوان العرض"

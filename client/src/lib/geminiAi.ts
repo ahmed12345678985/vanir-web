@@ -186,3 +186,49 @@ export async function askGeminiConcierge(
   const res = await model.generateContent(message);
   return res.response.text();
 }
+
+export async function generateStructuredJsonWithGemini<T>(
+  prompt: string,
+  systemInstruction?: string
+): Promise<T> {
+  const model = getGeminiModel(
+    systemInstruction ||
+      "You are the VANIR GROUP AI Content Architect. Return ONLY valid raw JSON matching the requested schema, with no markdown code fences or extra commentary."
+  );
+  const res = await model.generateContent(prompt);
+  const raw = res.response.text().trim();
+  const cleaned = raw
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+  const jsonMatch = cleaned.match(/[\{\[][\s\S]*[\}\]]/);
+  return JSON.parse(jsonMatch ? jsonMatch[0] : cleaned) as T;
+}
+
+export async function askVanirAIAssistant(
+  prompt: string,
+  taskType?: string,
+  history?: Array<{ role: string; content: string }>
+): Promise<string> {
+  const roleContext = taskType ? `Active task mode: ${taskType}.` : "";
+  const model = getGeminiModel(
+    `You are the Vanir AI Assistant — the executive AI operations & content copilot for VANIR GROUP Luxury Travel & Concierge (Egypt & Global). ${roleContext} Provide actionable, well-structured, high-value responses in the same language as the user's request (Arabic, English, or German).`
+  );
+
+  const validHistory = (history || [])
+    .filter((m) => m && m.content && (m.role === "user" || m.role === "assistant" || m.role === "model"))
+    .slice(-10)
+    .map((m) => ({
+      role: m.role === "assistant" ? ("model" as const) : ("user" as const),
+      parts: [{ text: String(m.content).slice(0, 3000) }],
+    }));
+
+  if (validHistory.length > 0 && validHistory[0].role === "user") {
+    const chat = model.startChat({ history: validHistory });
+    const res = await chat.sendMessage(prompt);
+    return res.response.text();
+  }
+
+  const res = await model.generateContent(prompt);
+  return res.response.text();
+}

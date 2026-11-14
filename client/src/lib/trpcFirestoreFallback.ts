@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { getAuth, updateProfile as firebaseUpdateProfile } from "firebase/auth";
 import { getFirebaseApp } from "./firebase-api";
-import { askGeminiConcierge } from "./geminiAi";
+import { askGeminiConcierge, askVanirAIAssistant } from "./geminiAi";
 import {
   db,
   getFirestoreSetting,
@@ -664,7 +664,7 @@ export async function executeTrpcFirestoreFallback(
     return { handled: true, data: { success: true } };
   }
 
-  // ─── 13. Firebase AI Logic (Gemini Public Concierge) ───────
+  // ─── 13. Firebase AI Logic (Gemini Public Concierge & Vanir AI Assistant) ───────
   if (procedure === "aiCommand.publicChat") {
     const message = String(input?.message || "").trim();
     const history = Array.isArray(input?.history) ? input.history : [];
@@ -673,6 +673,54 @@ export async function executeTrpcFirestoreFallback(
     }
     const reply = await askGeminiConcierge(message, history);
     return { handled: true, data: { reply } };
+  }
+
+  if (procedure === "aiCommand.chat") {
+    const msgs = Array.isArray(input?.messages) ? input.messages : [];
+    const lastUser = msgs[msgs.length - 1];
+    const prompt = String(lastUser?.content || "").trim() || "Hello";
+    const history = msgs.slice(0, -1).map((m: any) => ({
+      role: m.role === "assistant" ? "assistant" : "user",
+      content: String(m.content || ""),
+    }));
+    const response = await askVanirAIAssistant(prompt, input?.taskType, history);
+    return {
+      handled: true,
+      data: {
+        response,
+        usage: { total_tokens: Math.ceil((prompt.length + response.length) / 4) },
+      },
+    };
+  }
+
+  if (procedure === "aiCommand.executeTask") {
+    const prompt = [
+      input?.prompt ? String(input.prompt) : "",
+      input?.context ? `\n\nContext:\n${String(input.context)}` : "",
+    ]
+      .join("")
+      .trim();
+    const result = await askVanirAIAssistant(prompt, input?.taskType);
+    return {
+      handled: true,
+      data: {
+        result,
+        usage: { total_tokens: Math.ceil((prompt.length + result.length) / 4) },
+      },
+    };
+  }
+
+  if (procedure === "aiCommand.saveApiConfig") {
+    return { handled: true, data: { success: true } };
+  }
+
+  if (procedure === "aiCommand.testApiConnection") {
+    try {
+      const ping = await askVanirAIAssistant("Reply with OK.", "connection_test");
+      return { handled: true, data: { success: Boolean(ping), message: "Connected to Firebase AI Logic (Gemini 2.5 Flash)" } };
+    } catch (e: any) {
+      return { handled: true, data: { success: false, message: e?.message || "Gemini connection failed" } };
+    }
   }
 
   return { handled: false };

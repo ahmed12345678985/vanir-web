@@ -7,10 +7,11 @@ import { useState, useRef, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import OptimizedImage from "@/components/OptimizedImage";
+import { generateStructuredJsonWithGemini, findAndSaveTopicImage } from "@/lib/geminiAi";
 import {
   Image, Plus, Pencil, Trash2, Eye, EyeOff, Upload,
   X, Search, Star, Video, ChevronDown, Loader2, Link2,
-  Grid3X3, LayoutGrid, Filter
+  Grid3X3, LayoutGrid, Filter, Sparkles
 } from "lucide-react";
 
 /* ─── Category Options ─── */
@@ -597,7 +598,54 @@ function ImageFormModal({
   });
 
   const [previewUrl, setPreviewUrl] = useState(editing?.imageUrl || "");
+  const [aiGenerating, setAiGenerating] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleGenerateGalleryWithGemini = async () => {
+    const seed = form.titleAr || form.title || form.location || form.category || "Luxury Egypt Travel";
+    setAiGenerating(true);
+    try {
+      const data = await generateStructuredJsonWithGemini<{
+        title: string;
+        titleAr: string;
+        description: string;
+        descriptionAr: string;
+        location: string;
+        locationAr: string;
+        imageQuery: string;
+      }>(
+        `Generate luxury travel gallery metadata for VANIR GROUP based on: "${seed}" (Category: ${form.category}).
+Return JSON with keys:
+- title (concise English title)
+- titleAr (compelling Arabic title)
+- description (English caption, 1-2 sentences)
+- descriptionAr (Arabic caption, 1-2 sentences)
+- location (English location, e.g. "Luxor, Egypt")
+- locationAr (Arabic location, e.g. "الأقصر، مصر")
+- imageQuery (3-5 English keywords for a real scenic photo)`
+      );
+      let nextUrl = form.imageUrl;
+      if (!nextUrl && data.imageQuery) {
+        nextUrl = await findAndSaveTopicImage(data.imageQuery, "");
+        if (nextUrl) setPreviewUrl(nextUrl);
+      }
+      setForm((prev) => ({
+        ...prev,
+        imageUrl: nextUrl || prev.imageUrl,
+        title: data.title || prev.title,
+        titleAr: data.titleAr || prev.titleAr,
+        description: data.description || prev.description,
+        descriptionAr: data.descriptionAr || prev.descriptionAr,
+        location: data.location || prev.location,
+        locationAr: data.locationAr || prev.locationAr,
+      }));
+      toast.success("تم توليد بيانات الصورة بواسطة Gemini AI");
+    } catch (err: any) {
+      toast.error("فشل التوليد بالذكاء الاصطناعي: " + (err?.message || "Unknown error"));
+    } finally {
+      setAiGenerating(false);
+    }
+  };
 
   const handleFileUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -665,6 +713,18 @@ function ImageFormModal({
 
         {/* Body */}
         <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
+          <div className="flex items-center justify-between gap-3 bg-[var(--theme-primary)]/10 border border-[var(--theme-primary)]/30 rounded-xl px-3.5 py-2.5">
+            <span className="text-xs text-white/80">توليد العنوان والوصف والموقع (وجلب صورة مناسبة) تلقائياً عبر Gemini</span>
+            <button
+              type="button"
+              onClick={handleGenerateGalleryWithGemini}
+              disabled={aiGenerating}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--theme-primary)] text-black text-xs font-semibold hover:opacity-90 disabled:opacity-50 shrink-0"
+            >
+              {aiGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              توليد بالذكاء الاصطناعي Gemini
+            </button>
+          </div>
           {/* Image Upload */}
           <div>
             <label className="text-sm text-white/70 font-[var(--font-body)] mb-2 block">Image *</label>

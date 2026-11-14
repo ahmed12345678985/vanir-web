@@ -5,15 +5,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Edit2, Trash2, Search, Upload } from "lucide-react";
+import { Plus, Edit2, Trash2, Search, Upload, Sparkles, Loader2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { generateStructuredJsonWithGemini, findAndSaveTopicImage } from "@/lib/geminiAi";
 
 export default function DestinationsAdmin() {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -202,6 +204,71 @@ export default function DestinationsAdmin() {
             <DialogHeader>
               <DialogTitle>{editingId ? "تعديل الوجهة" : "إضافة وجهة جديدة"}</DialogTitle>
             </DialogHeader>
+            <div className="flex items-center justify-between gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+              <span className="text-xs text-muted-foreground">اكتب اسم الوجهة أو الموقع واضغط للتوليد التلقائي بالذكاء الاصطناعي</span>
+              <Button
+                type="button"
+                size="sm"
+                disabled={aiGenerating}
+                onClick={async () => {
+                  const seed = formData.name || formData.location || "الأقصر وأسوان - رحلة نيلية فاخرة";
+                  setAiGenerating(true);
+                  try {
+                    const data = await generateStructuredJsonWithGemini<{
+                      name: string;
+                      location: string;
+                      description: string;
+                      pricePerPerson: string;
+                      highlights: string;
+                      bestTimeToVisit: string;
+                      duration: string;
+                      inclusions: string;
+                      exclusions: string;
+                      imageQuery: string;
+                    }>(
+                      `Create a luxury travel destination entry for VANIR GROUP based on: "${seed}".
+Return JSON with keys:
+- name (Arabic destination name)
+- location (Country / City in Arabic, e.g. "مصر - البحر الأحمر")
+- description (compelling Arabic description, 2-3 sentences)
+- pricePerPerson (numeric string in USD, e.g. "1250")
+- highlights (comma-separated Arabic highlights)
+- bestTimeToVisit (Arabic season, e.g. "أكتوبر - أبريل")
+- duration (Arabic duration, e.g. "5 أيام / 4 ليالي")
+- inclusions (comma-separated Arabic inclusions)
+- exclusions (comma-separated Arabic exclusions)
+- imageQuery (3-5 English keywords for a real scenic photo)`
+                    );
+                    let nextImage = formData.imageUrl;
+                    if (!nextImage && data.imageQuery) {
+                      nextImage = await findAndSaveTopicImage(data.imageQuery, "");
+                    }
+                    setFormData((prev) => ({
+                      ...prev,
+                      name: data.name || prev.name,
+                      location: data.location || prev.location,
+                      description: data.description || prev.description,
+                      pricePerPerson: String(data.pricePerPerson || prev.pricePerPerson || "950"),
+                      highlights: data.highlights || prev.highlights,
+                      bestTimeToVisit: data.bestTimeToVisit || prev.bestTimeToVisit,
+                      duration: data.duration || prev.duration,
+                      inclusions: data.inclusions || prev.inclusions,
+                      exclusions: data.exclusions || prev.exclusions,
+                      imageUrl: nextImage || prev.imageUrl,
+                    }));
+                    toast.success("تم توليد تفاصيل الوجهة بواسطة Gemini AI");
+                  } catch (err: any) {
+                    toast.error("فشل التوليد: " + (err?.message || "Unknown error"));
+                  } finally {
+                    setAiGenerating(false);
+                  }
+                }}
+                className="gap-1.5 shrink-0"
+              >
+                {aiGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                توليد بالذكاء الاصطناعي Gemini
+              </Button>
+            </div>
             <div className="space-y-4 max-h-[600px] overflow-y-auto">
               <Input
                 placeholder="اسم الوجهة"

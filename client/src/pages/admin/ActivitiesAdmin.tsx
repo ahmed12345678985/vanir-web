@@ -2,9 +2,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { PlusCircle, Save, Trash2, Edit2, Clock, MapPin, Star, DollarSign, X, Loader2, AlertTriangle, Upload, CheckCircle2 } from 'lucide-react';
+import { PlusCircle, Save, Trash2, Edit2, Clock, MapPin, Star, DollarSign, X, Loader2, AlertTriangle, Upload, CheckCircle2, Sparkles } from 'lucide-react';
 import { trpc } from '@/lib/trpc';
 import { toast } from 'sonner';
+import { generateStructuredJsonWithGemini, findAndSaveTopicImage } from '@/lib/geminiAi';
 
 interface Activity {
   id: number;
@@ -112,6 +113,55 @@ export default function ActivitiesAdmin() {
 
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
+
+  const handleGenerateActivityWithGemini = async () => {
+    const seed = formData.nameAr || formData.name || formData.location || 'Luxury Desert & Nile VIP Activity in Egypt';
+    setAiGenerating(true);
+    try {
+      const data = await generateStructuredJsonWithGemini<{
+        name: string;
+        nameAr: string;
+        description: string;
+        price: number;
+        duration: string;
+        location: string;
+        category: string;
+        imageQuery: string;
+      }>(
+        `Create a luxury tourist activity for VANIR GROUP based on: "${seed}".
+Return JSON with keys:
+- name (concise English title)
+- nameAr (compelling Arabic title)
+- description (detailed luxury description in English or Arabic matching the seed, 2-3 sentences)
+- price (realistic USD number, e.g. 150)
+- duration (e.g. "3 hours" or "Full Day")
+- location (e.g. "Luxor, Egypt")
+- category (one of: "Safari & Desert", "Nile & Cruises", "Cultural & Heritage", "Adventure & Sea", "VIP & Helicopter")
+- imageQuery (3-5 English keywords for a real scenic photo)`
+      );
+      let nextImage = formData.image;
+      if (!nextImage && data.imageQuery) {
+        nextImage = await findAndSaveTopicImage(data.imageQuery, '');
+      }
+      setFormData((prev) => ({
+        ...prev,
+        name: data.name || prev.name,
+        nameAr: data.nameAr || prev.nameAr,
+        description: data.description || prev.description,
+        price: Number(data.price) || prev.price || 120,
+        duration: data.duration || prev.duration || '3 hours',
+        location: data.location || prev.location,
+        category: data.category || prev.category,
+        image: nextImage || prev.image,
+      }));
+      toast.success('تم توليد تفاصيل النشاط بواسطة Gemini AI');
+    } catch (err: any) {
+      toast.error('فشل التوليد بالذكاء الاصطناعي: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setAiGenerating(false);
+    }
+  };
   const utils = trpc.useUtils();
   const { data: saved, isLoading, refetch } = trpc.siteSettings.get.useQuery(
     { category: "activities", key: "activities_data" },
@@ -346,6 +396,19 @@ export default function ActivitiesAdmin() {
             </div>
 
             <div className="space-y-3.5 text-right" dir="rtl">
+              <div className="flex items-center justify-between bg-[var(--theme-primary)]/10 border border-[var(--theme-primary)]/30 rounded-xl px-3 py-2">
+                <span className="text-xs text-white/80">اكتب اسم النشاط أو الموقع ثم اضغط للتوليد التلقائي بالذكاء الاصطناعي</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleGenerateActivityWithGemini}
+                  disabled={aiGenerating}
+                  className="bg-[var(--theme-primary)] text-black hover:opacity-90 gap-1.5 text-xs shrink-0"
+                >
+                  {aiGenerating ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
+                  توليد بالذكاء الاصطناعي Gemini
+                </Button>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-white/80 mb-1">الاسم بالعربية *</label>

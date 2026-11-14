@@ -24,7 +24,9 @@ import {
   Layers,
   Sliders,
   Filter,
+  Loader2,
 } from "lucide-react";
+import { generateStructuredJsonWithGemini, findAndSaveTopicImage } from "@/lib/geminiAi";
 import {
   fetchFullMobileCatalog,
   saveFullMobileCatalog,
@@ -80,6 +82,7 @@ export default function MobileAppAdminHub() {
   const [pushHistory, setPushHistory] = useState<PushNotificationPayload[]>([]);
   const [sendingPush, setSendingPush] = useState(false);
   const [uploadingPushImage, setUploadingPushImage] = useState(false);
+  const [aiGeneratingPush, setAiGeneratingPush] = useState(false);
   const pushFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -754,6 +757,47 @@ export default function MobileAppAdminHub() {
               onSubmit={handleSendPush}
               className="lg:col-span-2 rounded-2xl border border-white/[0.08] bg-[#10101a] p-6 space-y-4"
             >
+              <div className="flex items-center justify-between gap-2 bg-[rgba(201,168,76,0.08)] border border-[rgba(201,168,76,0.25)] rounded-xl px-3.5 py-2.5">
+                <span className="text-xs text-[#CCD6F6]">توليد نص إشعار تسويقي احترافي وصورة بانر بالذكاء الاصطناعي</span>
+                <button
+                  type="button"
+                  disabled={aiGeneratingPush}
+                  onClick={async () => {
+                    const seed = pushTitle || pushTarget || "عرض حصري لرحلات الطيران الخاص واليخوت الفاخرة";
+                    setAiGeneratingPush(true);
+                    try {
+                      const data = await generateStructuredJsonWithGemini<{
+                        title: string;
+                        body: string;
+                        imageQuery: string;
+                      }>(
+                        `Create an engaging luxury travel mobile push notification in Arabic for VANIR GROUP based on: "${seed}" (target screen: ${pushTarget}).
+Return JSON with keys:
+- title (short punchy Arabic notification title <= 60 chars)
+- body (persuasive Arabic push message <= 160 chars)
+- imageQuery (3-5 English keywords for a real scenic photo)`
+                      );
+                      setPushTitle(data.title || pushTitle);
+                      setPushBody(data.body || pushBody);
+                      if (!pushImageUrl && data.imageQuery) {
+                        const img = await findAndSaveTopicImage(data.imageQuery, "");
+                        if (img) setPushImageUrl(img);
+                      }
+                      setToast("تم توليد الإشعار بواسطة Gemini AI");
+                      setTimeout(() => setToast(null), 3000);
+                    } catch {
+                      setToast("تعذر التوليد عبر Gemini AI");
+                      setTimeout(() => setToast(null), 3000);
+                    } finally {
+                      setAiGeneratingPush(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#c9a84c] text-black text-xs font-bold hover:opacity-90 disabled:opacity-50 shrink-0"
+                >
+                  {aiGeneratingPush ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  توليد بالذكاء الاصطناعي Gemini
+                </button>
+              </div>
               <div>
                 <label className="text-xs text-[#8892B0] font-medium block mb-1.5">
                   عنوان الإشعار (Notification Title):

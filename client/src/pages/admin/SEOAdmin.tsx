@@ -9,7 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Search, Globe, Share2, Eye, Edit2, Check, Save, AlertTriangle, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Search, Globe, Share2, Eye, Edit2, Check, Save, AlertTriangle, CheckCircle2, XCircle, Loader2, Sparkles } from "lucide-react";
+import { generateStructuredJsonWithGemini } from "@/lib/geminiAi";
 
 /* ─── Types ─── */
 interface PageSEO {
@@ -76,6 +77,7 @@ export default function SEOAdmin() {
   const [editingPage, setEditingPage] = useState<PageSEO | null>(null);
   const [showDialog, setShowDialog] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   // Load SEO data from DB
   const seoQuery = trpc.siteSettings.getByCategory.useQuery({ category: "seo" });
@@ -230,10 +232,60 @@ export default function SEOAdmin() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="bg-[var(--theme-surface)] border-white/10 text-white max-w-3xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <Globe className="w-5 h-5 text-[var(--theme-primary)]" />
-              Edit SEO - {editingPage?.path}
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-3">
+              <DialogTitle className="text-white flex items-center gap-2">
+                <Globe className="w-5 h-5 text-[var(--theme-primary)]" />
+                Edit SEO - {editingPage?.path}
+              </DialogTitle>
+              {editingPage && (
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={aiGenerating}
+                  onClick={async () => {
+                    setAiGenerating(true);
+                    try {
+                      const data = await generateStructuredJsonWithGemini<{
+                        title: string;
+                        description: string;
+                        keywords: string;
+                        ogTitle: string;
+                        ogDescription: string;
+                      }>(
+                        `Optimize SEO meta tags for VANIR GROUP Luxury Travel page "${editingPage.path}" (current title: "${editingPage.title}").
+Return JSON with keys:
+- title (<= 60 characters, include VANIR GROUP)
+- description (120-158 characters, compelling luxury travel meta description)
+- keywords (8-12 comma-separated high-intent English & Arabic travel keywords)
+- ogTitle (<= 60 characters)
+- ogDescription (<= 155 characters)`
+                      );
+                      setEditingPage((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              title: data.title || prev.title,
+                              description: data.description || prev.description,
+                              keywords: data.keywords || prev.keywords,
+                              ogTitle: data.ogTitle || prev.ogTitle,
+                              ogDescription: data.ogDescription || prev.ogDescription,
+                            }
+                          : prev
+                      );
+                      toast.success("تم تحسين بيانات SEO بواسطة Gemini AI");
+                    } catch (err: any) {
+                      toast.error("فشل توليد SEO: " + (err?.message || "Unknown error"));
+                    } finally {
+                      setAiGenerating(false);
+                    }
+                  }}
+                  className="bg-[var(--theme-primary)] text-black hover:opacity-90 gap-1.5 text-xs"
+                >
+                  {aiGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                  توليد SEO بالذكاء الاصطناعي Gemini
+                </Button>
+              )}
+            </div>
           </DialogHeader>
 
           {editingPage && (
