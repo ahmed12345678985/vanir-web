@@ -318,22 +318,9 @@ export async function bulkImportBlogPosts(
   return { count };
 }
 
-import { compressImageToDataUri } from "./siteSettingsApi";
+import { uploadDirectMedia } from "./siteSettingsApi";
 
-// 6. رفع صورة مقال مباشرة إلى Firebase Storage مع Fallback فوري للكوتا
+// 6. رفع صورة مقال مباشرة إلى Cloudinary CDN مع Fallback تلقائي
 export async function uploadBlogImage(file: File): Promise<string> {
-  try {
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const filename = `blog_assets/${Date.now()}_${sanitizedName}`;
-    const fileRef = ref(storage, filename);
-    await uploadBytes(fileRef, file, { contentType: file.type });
-    return await getDownloadURL(fileRef);
-  } catch (err: any) {
-    console.warn(`[blogApi] Blog storage upload failed (${err?.code || err?.message}), applying intelligent Data-URI fallback:`, err);
-    if (file.type.startsWith("image/")) {
-      const dataUri = await compressImageToDataUri(file);
-      return dataUri;
-    }
-    throw err;
-  }
+  return await uploadDirectMedia(file, "blog_assets");
 }

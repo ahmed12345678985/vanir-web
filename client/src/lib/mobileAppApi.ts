@@ -461,22 +461,9 @@ export async function fetchRecentNotifications(): Promise<PushNotificationPayloa
   }
 }
 
-import { compressImageToDataUri } from "./siteSettingsApi";
+import { uploadDirectMedia } from "./siteSettingsApi";
 
-// 4. Upload Image Directly to Firebase Storage with Quota Exceeded Resilience
+// 4. Upload Image Directly to Cloudinary CDN with Data-URI Fallback
 export async function uploadMobileImage(file: File, folder = 'mobile_catalog_assets'): Promise<string> {
-  try {
-    const sanitizedName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-    const filename = `${folder}/${Date.now()}_${sanitizedName}`;
-    const fileRef = ref(storage, filename);
-    await uploadBytes(fileRef, file, { contentType: file.type });
-    return await getDownloadURL(fileRef);
-  } catch (err: any) {
-    console.warn(`[mobileAppApi] Firebase Storage upload failed (${err?.code || err?.message}), applying intelligent Data-URI fallback:`, err);
-    if (file.type.startsWith('image/')) {
-      const dataUri = await compressImageToDataUri(file);
-      return dataUri;
-    }
-    throw err;
-  }
+  return await uploadDirectMedia(file, folder);
 }

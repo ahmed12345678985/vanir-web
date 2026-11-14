@@ -210,22 +210,50 @@ async function compressDataUri(
   });
 }
 
-// 5. رفع ملف وسائط (صورة أو فيديو) مباشرة إلى Firebase Storage مع Fallback فوري للكوتا
-export async function uploadDirectMedia(file: File, folder = "uploads"): Promise<string> {
+const CLOUDINARY_CLOUD_NAME = "gq1svib6";
+const CLOUDINARY_UPLOAD_PRESET = "vanir";
+
+export async function uploadToCloudinary(
+  fileOrDataUri: File | Blob | string,
+  folder = "vanir"
+): Promise<string> {
+  const formData = new FormData();
+  formData.append("file", fileOrDataUri);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  if (folder) {
+    formData.append("folder", folder);
+  }
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => res.statusText);
+    throw new Error(`Cloudinary upload failed (${res.status}): ${errText}`);
+  }
+
+  const data = await res.json();
+  if (!data?.secure_url) {
+    throw new Error("Cloudinary response missing secure_url");
+  }
+  return data.secure_url as string;
+}
+
+// 5. رفع ملف وسائط (صورة أو فيديو) مباشرة إلى Cloudinary CDN مع Fallback تلقائي عند عدم توفر الشبكة
+export async function uploadDirectMedia(file: File, folder = "vanir"): Promise<string> {
   try {
-    const sanitized = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const filename = `${folder}/${Date.now()}_${sanitized}`;
-    const fileRef = ref(storage, filename);
-    await withTimeout(uploadBytes(fileRef, file, { contentType: file.type || "application/octet-stream" }));
-    return await withTimeout(getDownloadURL(fileRef));
+    return await uploadToCloudinary(file, folder);
   } catch (err: any) {
-    console.warn(`[siteSettingsApi] Storage upload failed (${err?.code || err?.message}), applying intelligent Data-URI fallback:`, err);
-    // If quota exceeded or offline, compress image and return inline Data-URI
+    console.warn(`[siteSettingsApi] Cloudinary upload failed (${err?.message}), applying Data-URI fallback:`, err);
     const isImg = !file.type || file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg|avif)$/i.test(file.name);
     if (isImg) {
       try {
-        const dataUri = await compressImageToDataUri(file);
-        return dataUri;
+        return await compressImageToDataUri(file);
       } catch (compErr) {
         console.error("Compression error during fallback:", compErr);
       }
@@ -234,34 +262,21 @@ export async function uploadDirectMedia(file: File, folder = "uploads"): Promise
   }
 }
 
-// 6. رفع Base64 مباشرة إلى Firebase Storage (مع Fallback فوري عند نفاد الكوتا وضغط تلقائي)
+// 6. رفع Base64 مباشرة إلى Cloudinary CDN (مع Fallback تلقائي وضغط ذكي)
 export async function uploadBase64Media(
   base64Data: string,
-  filename: string,
+  _filename: string,
   mimeType: string,
-  folder = "uploads"
+  folder = "vanir"
 ): Promise<string> {
   const fullDataUri = base64Data.startsWith("data:")
     ? base64Data
     : `data:${mimeType || "image/jpeg"};base64,${base64Data}`;
 
   try {
-    const sanitized = filename.replace(/[^a-zA-Z0-9.-]/g, "_");
-    const fullPath = `${folder}/${Date.now()}_${sanitized}`;
-    const fileRef = ref(storage, fullPath);
-
-    const cleanBase64 = base64Data.includes(",") ? base64Data.split(",")[1] : base64Data;
-    const byteChars = atob(cleanBase64);
-    const byteNums = new Array(byteChars.length);
-    for (let i = 0; i < byteChars.length; i++) {
-      byteNums[i] = byteChars.charCodeAt(i);
-    }
-    const byteArray = new Uint8Array(byteNums);
-
-    await withTimeout(uploadBytes(fileRef, byteArray, { contentType: mimeType || "image/jpeg" }));
-    return await withTimeout(getDownloadURL(fileRef));
+    return await uploadToCloudinary(fullDataUri, folder);
   } catch (err: any) {
-    console.warn(`[siteSettingsApi] Base64 storage upload failed (${err?.code || err?.message}), compressing data URI:`, err);
+    console.warn(`[siteSettingsApi] Cloudinary Base64 upload failed (${err?.message}), compressing data URI:`, err);
     if (!mimeType || mimeType.startsWith("image/") || fullDataUri.startsWith("data:image/")) {
       return await compressDataUri(fullDataUri);
     }
