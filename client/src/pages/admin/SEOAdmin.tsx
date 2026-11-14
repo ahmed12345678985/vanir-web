@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Search, Globe, Share2, Eye, Edit2, Check, Save, AlertTriangle, CheckCircle2, XCircle, Loader2, Sparkles } from "lucide-react";
 import { generateStructuredJsonWithGemini } from "@/lib/geminiAi";
+import SEOToolsSuite from "@/components/admin/SEOToolsSuite";
 
 /* ─── Types ─── */
 interface PageSEO {
@@ -166,6 +167,18 @@ export default function SEOAdmin() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Full SEO Tools Suite */}
+      <SEOToolsSuite
+        pages={pages}
+        onUpdatePages={async (updatedPages) => {
+          setPages(updatedPages);
+          await saveMutation.mutateAsync({
+            category: "seo",
+            settings: { pages: JSON.stringify(updatedPages) },
+          });
+        }}
+      />
 
       {/* Search */}
       <div className="relative">

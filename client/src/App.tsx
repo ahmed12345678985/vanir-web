@@ -51,6 +51,7 @@ const LuxuryNews = lazy(() => import("./pages/luxury/News"));
 const Affiliated = lazy(() => import("./pages/luxury/Affiliated"));
 const Packages = lazy(() => import("./pages/luxury/Packages"));
 const ComponentShowcase = lazy(() => import("./pages/ComponentShowcase"));
+const ServiceLandingPage = lazy(() => import("./pages/ServiceLandingPage"));
 
 // Lazy-loaded Marketing Generator Pages
 const SocialMediaGenerator = lazy(() => import("./pages/marketing/SocialMediaGenerator"));
@@ -145,6 +146,9 @@ function Router() {
     <Suspense fallback={<PageLoadingSkeleton variant="hero" />}>
       <Switch>
       <Route path={"/"} component={Home} />
+      <Route path={"/de/:slug"} component={ServiceLandingPage} />
+      <Route path={"/en/:slug"} component={ServiceLandingPage} />
+      <Route path={"/ar/:slug"} component={ServiceLandingPage} />
       <Route path={"/contact"} component={Contact} />
       <Route path={"/about"} component={About} />
       <Route path={"/team"} component={AuthorProfile} />
