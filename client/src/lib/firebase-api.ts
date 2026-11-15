@@ -1,5 +1,6 @@
 import { initializeApp, getApps, type FirebaseApp } from "firebase/app";
 import { getAnalytics } from "firebase/analytics";
+import { initializeAppCheck, ReCaptchaV3Provider } from "firebase/app-check";
 import {
   getAuth,
   signInWithEmailAndPassword,
@@ -31,6 +32,20 @@ export function getFirebaseApp(): FirebaseApp | null {
   if (getApps().length) return getApps()[0];
 
   const app = initializeApp(firebaseConfig);
+
+  // تفعيل Firebase App Check عبر reCAPTCHA v3 لتشغيل Firebase AI Logic على الويب
+  if (typeof window !== "undefined") {
+    try {
+      const recaptchaSiteKey =
+        env.VITE_RECAPTCHA_V3_SITE_KEY || "6LfvxiAuAAAAANfJjkc4Klc4uehXAd66PCaK_PjG";
+      initializeAppCheck(app, {
+        provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+        isTokenAutoRefreshEnabled: true,
+      });
+    } catch {
+      // تجاهل في حال تهيئة App Check مسبقاً
+    }
+  }
 
   // تهيئة Google Analytics إذا كان measurementId متوفراً
   if (firebaseConfig.measurementId) {
