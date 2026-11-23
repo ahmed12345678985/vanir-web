@@ -1,0 +1,1 @@
+import{j as r}from"./vendor-motion-3GLFDvpA.js";import{T as m}from"./TravelOrderPlatform-CW2dRKS3.js";import"./vendor-icons-897M4VHW.js";import"./index-C9zDzSeB.js";import"./vendor-charts-DzVTovrS.js";import"./vendor-diagrams-CRTHFRYO.js";import"./vendor-shiki-wFJRBSaq.js";import"./vendor-firebase-CWELNnxb.js";function s(){return r.jsx(m,{mode:"admin"})}export{s as default};

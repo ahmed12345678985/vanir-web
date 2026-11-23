@@ -1,1 +1,4 @@
+https://www.vanirgroup.com/* https://vanirgroup.com/:splat 301!
+http://www.vanirgroup.com/* https://vanirgroup.com/:splat 301!
+http://vanirgroup.com/* https://vanirgroup.com/:splat 301!
 /* /index.html 200

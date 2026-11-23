@@ -1,39 +1,42 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
 import { Route, Switch, Redirect } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PageLoadingSkeleton from "./components/PageLoadingSkeleton";
+import NewYearFestiveOverlay from "./components/NewYearFestiveOverlay";
 
-// Core Public Pages (synchronous for instantaneous first paint)
+// Core Public Pages (only Home synchronous for instantaneous first paint)
 import Home from "./pages/Home";
-import Contact from "./pages/Contact";
-import About from "./pages/About";
-import Gallery from "./pages/Gallery";
-import Booking from "./pages/Booking";
-import Reviews from "./pages/Reviews";
-import Offers from "./pages/Offers";
-import CaseStudies from "./pages/CaseStudies";
-import Destinations from "./pages/Destinations";
-import Programs from "./pages/Programs";
-import Services from "./pages/Services";
-import Vanir from "./pages/Vanir";
-import AIStudio from "./pages/AIStudio";
-import AIImageGenerator from "./pages/AIImageGenerator";
-import AIDashboard from "./pages/AIDashboard";
-import AIPricingPlans from "./pages/AIPricingPlans";
-import Login from "./pages/Login";
-import Profile from "./pages/Profile";
-import PrivacyPolicy from "./pages/PrivacyPolicy";
-import TermsOfService from "./pages/TermsOfService";
-import Blog from "./pages/Blog";
-import BlogPost from "./pages/BlogPost";
-import AuthorProfile from "./pages/AuthorProfile";
-import MarketingSuite from "./pages/MarketingSuite";
-import PrivateJet from "./pages/luxury/PrivateJet";
-import AdminLayout from "./components/AdminLayout";
-import { PublicAIConcierge } from "./components/PublicAIConcierge";
+
+// Lazy-loaded Public Pages
+const Contact = lazy(() => import("./pages/Contact"));
+const About = lazy(() => import("./pages/About"));
+const Gallery = lazy(() => import("./pages/Gallery"));
+const Booking = lazy(() => import("./pages/Booking"));
+const Reviews = lazy(() => import("./pages/Reviews"));
+const Offers = lazy(() => import("./pages/Offers"));
+const CaseStudies = lazy(() => import("./pages/CaseStudies"));
+const Destinations = lazy(() => import("./pages/Destinations"));
+const Programs = lazy(() => import("./pages/Programs"));
+const Services = lazy(() => import("./pages/Services"));
+const Vanir = lazy(() => import("./pages/Vanir"));
+const AIStudio = lazy(() => import("./pages/AIStudio"));
+const AIImageGenerator = lazy(() => import("./pages/AIImageGenerator"));
+const AIDashboard = lazy(() => import("./pages/AIDashboard"));
+const AIPricingPlans = lazy(() => import("./pages/AIPricingPlans"));
+const Login = lazy(() => import("./pages/Login"));
+const Profile = lazy(() => import("./pages/Profile"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfService = lazy(() => import("./pages/TermsOfService"));
+const Blog = lazy(() => import("./pages/Blog"));
+const BlogPost = lazy(() => import("./pages/BlogPost"));
+const AuthorProfile = lazy(() => import("./pages/AuthorProfile"));
+const MarketingSuite = lazy(() => import("./pages/MarketingSuite"));
+const PrivateJet = lazy(() => import("./pages/luxury/PrivateJet"));
+const AdminLayout = lazy(() => import("./components/AdminLayout"));
+const PublicAIConcierge = lazy(() => import("./components/PublicAIConcierge").then((m) => ({ default: m.PublicAIConcierge })));
 
 // Lazy-loaded Secondary Luxury Pages
 const Hotels = lazy(() => import("./pages/luxury/Hotels"));
@@ -44,6 +47,7 @@ const Visa = lazy(() => import("./pages/luxury/Visa"));
 const ESim = lazy(() => import("./pages/luxury/ESim"));
 const FlightsBooking = lazy(() => import("./pages/luxury/FlightsBooking"));
 const HotelsBooking = lazy(() => import("./pages/luxury/HotelsBooking"));
+const AirbnbRentals = lazy(() => import("./pages/luxury/AirbnbRentals"));
 const Tours = lazy(() => import("./pages/luxury/Tours"));
 const Insurance = lazy(() => import("./pages/luxury/Insurance"));
 const Groups = lazy(() => import("./pages/luxury/Groups"));
@@ -94,6 +98,12 @@ const LiveVisualEditor = lazy(() => import("./pages/admin/LiveVisualEditor"));
 const DatabaseManagerAdmin = lazy(() => import("./pages/admin/DatabaseManagerAdmin"));
 const SystemMonitorAdmin = lazy(() => import("./pages/admin/SystemMonitorAdmin"));
 const MobileAppAdminHub = lazy(() => import("./pages/admin/MobileAppAdminHub"));
+const ProfileAdmin = lazy(() => import("./pages/admin/ProfileAdmin"));
+const HotelsAdmin = lazy(() => import("./pages/admin/HotelsAdmin"));
+const TransfersAdmin = lazy(() => import("./pages/admin/TransfersAdmin"));
+const SocialMediaAdmin = lazy(() => import("./pages/admin/SocialMediaAdmin"));
+const TravelOrderAdmin = lazy(() => import("./pages/admin/TravelOrderAdmin"));
+const TravelBookingHub = lazy(() => import("./pages/TravelBookingHub"));
 
 function AdminPortal() {
   return (
@@ -106,8 +116,8 @@ function AdminPortal() {
         <Route path="/admin/packages" component={AdminPackages} />
         <Route path="/admin/jets" component={AdminPackages} />
         <Route path="/admin/yachts" component={AdminPackages} />
-        <Route path="/admin/hotels" component={MobileAppAdminHub} />
-        <Route path="/admin/transfers" component={MobileAppAdminHub} />
+        <Route path="/admin/hotels" component={HotelsAdmin} />
+        <Route path="/admin/transfers" component={TransfersAdmin} />
         <Route path="/admin/services" component={MobileAppAdminHub} />
         <Route path="/admin/offers" component={OffersAdmin} />
         <Route path="/admin/blog" component={BlogAdmin} />
@@ -115,6 +125,7 @@ function AdminPortal() {
         <Route path="/admin/gallery" component={AdminGallery} />
         <Route path="/admin/reviews" component={ReviewsAdmin} />
         <Route path="/admin/bookings" component={BookingsAdmin} />
+        <Route path="/admin/travel-hub" component={TravelOrderAdmin} />
         <Route path="/admin/messages" component={MessagesAdmin} />
         <Route path="/admin/users" component={AdminUsers} />
         <Route path="/admin/credits" component={CreditsAdmin} />
@@ -122,7 +133,9 @@ function AdminPortal() {
         <Route path="/admin/navbar" component={NavbarAdmin} />
         <Route path="/admin/pages" component={PagesAdmin} />
         <Route path="/admin/ai-studio" component={AdminAIStudio} />
+        <Route path="/admin/social-media" component={SocialMediaAdmin} />
         <Route path="/admin/settings" component={SettingsAdmin} />
+        <Route path="/admin/profile" component={ProfileAdmin} />
         <Route path="/admin/permissions" component={PermissionsAdmin} />
         <Route path="/admin/audit-log" component={AuditLogAdmin} />
         <Route path="/admin/testimonials" component={TestimonialsAdmin} />
@@ -156,6 +169,8 @@ function Router() {
       <Route path={"/author/:slug"} component={AuthorProfile} />
       <Route path={"/gallery"} component={Gallery} />
       <Route path={"/booking"} component={Booking} />
+      <Route path={"/travel-booking"} component={TravelBookingHub} />
+      <Route path={"/new-booking"} component={TravelBookingHub} />
       <Route path={"/reviews"} component={Reviews} />
       <Route path={"/offers"} component={Offers} />
       <Route path={"/case-studies"} component={CaseStudies} />
@@ -217,7 +232,10 @@ function Router() {
       <Route path={"/visa"} component={Visa} />
       <Route path={"/esim"} component={ESim} />
       <Route path={"/flights-booking"} component={FlightsBooking} />
+      <Route path={"/flights"} component={FlightsBooking} />
       <Route path={"/hotels-booking"} component={HotelsBooking} />
+      <Route path={"/airbnb"} component={AirbnbRentals} />
+      <Route path={"/villas"} component={AirbnbRentals} />
       <Route path={"/tours"} component={Tours} />
       <Route path={"/luxury/tours"} component={Tours} />
       <Route path={"/insurance"} component={Insurance} />
@@ -263,13 +281,37 @@ function Router() {
 }
 
 function App() {
+  const [mountConcierge, setMountConcierge] = useState(false);
+
+  useEffect(() => {
+    let activated = false;
+    const activate = () => {
+      if (activated) return;
+      activated = true;
+      setMountConcierge(true);
+    };
+    const timer = setTimeout(activate, 12000);
+    window.addEventListener("pointerdown", activate, { once: true, passive: true });
+    window.addEventListener("scroll", activate, { once: true, passive: true });
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("pointerdown", activate);
+      window.removeEventListener("scroll", activate);
+    };
+  }, []);
+
   return (
     <ErrorBoundary>
       <TooltipProvider>
         <Toaster />
         {/* <PromoNotifications /> */} {/* Disabled: Removed popup notifications and offers */}
         <Router />
-        <PublicAIConcierge />
+        <NewYearFestiveOverlay />
+        {mountConcierge && (
+          <Suspense fallback={null}>
+            <PublicAIConcierge />
+          </Suspense>
+        )}
       </TooltipProvider>
     </ErrorBoundary>
   );

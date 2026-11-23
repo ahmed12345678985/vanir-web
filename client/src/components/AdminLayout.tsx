@@ -24,43 +24,20 @@ import { apiBase, getFirebaseApp } from "@/lib/firebase-api";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { useIsMobile } from "@/hooks/useMobile";
 import {
-  LayoutDashboard,
-  CalendarCheck,
-  Star,
-  MessageSquare,
-  Tag,
-  Image,
   LogOut,
   PanelLeft,
   ArrowLeft,
-  Crown,
-  Sparkles,
-  Users,
-  MapPin,
-  BookOpen,
-  Compass,
-  FileText,
-  BarChart3,
-  ShieldCheck,
-  Coins,
-  Settings,
-  PanelTop,
-  Navigation,
-  FileStack,
-  Palette,
-  Globe,
-  FolderOpen,
-  HardDrive,
-  Brain,
-  Upload,
-  MonitorSmartphone,
-  Server,
-  Database,
   AlertCircle,
-  RotateCcw
+  Search,
+  Bell,
+  LayoutGrid,
+  X,
+  Globe,
+  ShieldCheck,
 } from "lucide-react";
 import React, { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
+import { trpc } from "@/lib/trpc";
 import { DashboardLayoutSkeleton } from "./DashboardLayoutSkeleton";
 import { Button } from "./ui/button";
 
@@ -84,50 +61,50 @@ function isUserAdmin(email?: string | null): boolean {
 }
 
 const adminMenuItems = [
-  // ── الرئيسية ──
-  { icon: LayoutDashboard, label: "نظرة عامة (Overview)", path: "/admin", group: "main" },
-  { icon: BarChart3, label: "التحليلات (Analytics)", path: "/admin/analytics", group: "main" },
+  // ── Main ──
+  { icon3d: "/icons/travel-3d/DestinationsGlobe.webp", label: "Overview", path: "/admin", group: "main" },
+  { icon3d: "/icons/travel-3d/SaveMoney.webp", label: "Analytics & Google", path: "/admin/analytics", group: "main" },
+  { icon3d: "/icons/travel-3d/SeamlessJourney.webp", label: "AI Studio Hub", path: "/admin/ai-studio", group: "main" },
+  { icon3d: "/icons/travel-3d/CameraHat.webp", label: "Social Media Studio", path: "/admin/social-media", group: "main" },
 
-  // ── المحتوى (CONTENT) ──
-  { icon: MapPin, label: "الوجهات (Destinations)", path: "/admin/destinations", group: "content" },
-  { icon: Tag, label: "العروض (Offers)", path: "/admin/offers", group: "content" },
-  { icon: BookOpen, label: "المدونة (Blog)", path: "/admin/blog", group: "content" },
-  { icon: Compass, label: "الأنشطة (Activities)", path: "/admin/activities", group: "content" },
-  { icon: Image, label: "معرض الصور (Gallery)", path: "/admin/gallery", group: "content" },
-  { icon: Star, label: "التقييمات (Reviews)", path: "/admin/reviews", group: "content" },
+  // ── Operations ──
+  { icon3d: "/icons/travel-3d/Contact.webp", label: "User Management", path: "/admin/users", group: "operations" },
+  { icon3d: "/icons/travel-3d/Calendar.webp", label: "Bookings", path: "/admin/bookings", group: "operations" },
+  { icon3d: "/icons/travel-3d/PlaneInBottle.webp", label: "Order & Booking Hub", path: "/admin/travel-hub", group: "operations" },
+  { icon3d: "/icons/travel-3d/NotificationBell.webp", label: "Messenger Chat", path: "/admin/messages", group: "operations" },
+  { icon3d: "/icons/travel-3d/Refund.webp", label: "Credits & Billing", path: "/admin/credits", group: "operations" },
 
-  // ── الخدمات والتطبيق (APP & SERVICES) ──
-  { icon: MonitorSmartphone, label: "مركز كافة الخدمات والتطبيق (14 خدمة)", path: "/admin/mobile-app", group: "services" },
-  { icon: Crown, label: "البرامج السياحية (Packages)", path: "/admin/packages", group: "services" },
-  { icon: Compass, label: "الطيران الخاص (Jets)", path: "/admin/jets", group: "services" },
-  { icon: Compass, label: "اليخوت الفاخرة (Yachts)", path: "/admin/yachts", group: "services" },
-  { icon: Compass, label: "الفنادق والمنتجعات (Hotels)", path: "/admin/hotels", group: "services" },
-  { icon: Compass, label: "الليموزين والسيارات (Transfers)", path: "/admin/transfers", group: "services" },
-  { icon: Sparkles, label: "المساعد الذكي VIP (AI Studio)", path: "/admin/ai-studio", group: "services" },
+  // ── Content & Media ──
+  { icon3d: "/icons/travel-3d/CameraHat.webp", label: "Photo Library", path: "/admin/media", group: "content" },
+  { icon3d: "/icons/travel-3d/DestinationsGlobe.webp", label: "Destinations", path: "/admin/destinations", group: "content" },
+  { icon3d: "/icons/travel-3d/BadgeCheck.webp", label: "Offers & Deals", path: "/admin/offers", group: "content" },
+  { icon3d: "/icons/travel-3d/PassporteVisa.webp", label: "Blog & Articles", path: "/admin/blog", group: "content" },
+  { icon3d: "/icons/travel-3d/AirportParking.webp", label: "Activities", path: "/admin/activities", group: "content" },
+  { icon3d: "/icons/travel-3d/CameraHat.webp", label: "Gallery", path: "/admin/gallery", group: "content" },
+  { icon3d: "/icons/travel-3d/BadgeCheck.webp", label: "Reviews & GBP", path: "/admin/reviews", group: "content" },
 
-  // ── العمليات (OPERATIONS) ──
-  { icon: CalendarCheck, label: "الحجوزات (Bookings)", path: "/admin/bookings", group: "operations" },
-  { icon: MessageSquare, label: "الرسائل (Messages)", path: "/admin/messages", group: "operations" },
-  { icon: Users, label: "العملاء والبروفايل VIP (CRM)", path: "/admin/users", group: "operations" },
-  { icon: Coins, label: "الرصيد والمدفوعات (Credits)", path: "/admin/credits", group: "operations" },
+  // ── Services & App ──
+  { icon3d: "/icons/travel-3d/MobileeSim.webp", label: "Mobile App Hub", path: "/admin/mobile-app", group: "services" },
+  { icon3d: "/icons/travel-3d/PlaneInBottle.webp", label: "Packages & Jets", path: "/admin/packages", group: "services" },
+  { icon3d: "/icons/travel-3d/HotelBed.webp", label: "Hotel Booking", path: "/admin/hotels", group: "services" },
+  { icon3d: "/icons/travel-3d/AirportTransfer.webp", label: "Transfers & Cars", path: "/admin/transfers", group: "services" },
 
-  // ── التصميم (DESIGN) ──
-  { icon: PanelTop, label: "الواجهة الرئيسية (Hero)", path: "/admin/hero", group: "design" },
-  { icon: Navigation, label: "شريط التنقل (Navbar)", path: "/admin/navbar", group: "design" },
-  { icon: FileStack, label: "الصفحات (Pages)", path: "/admin/pages", group: "design" },
-  { icon: MonitorSmartphone, label: "المحرر المباشر (Editor)", path: "/admin/visual-editor", group: "design" },
-  { icon: Palette, label: "المظهر والألوان (Theme)", path: "/admin/theme", group: "design" },
+  // ── Design ──
+  { icon3d: "/icons/travel-3d/SeatingEmpty.webp", label: "Hero Section", path: "/admin/hero", group: "design" },
+  { icon3d: "/icons/travel-3d/SeamlessJourney.webp", label: "Navigation Bar", path: "/admin/navbar", group: "design" },
+  { icon3d: "/icons/travel-3d/PassporteVisa.webp", label: "Pages Manager", path: "/admin/pages", group: "design" },
+  { icon3d: "/icons/travel-3d/CameraHat.webp", label: "Live Editor", path: "/admin/visual-editor", group: "design" },
+  { icon3d: "/icons/travel-3d/BadgePlane.webp", label: "Theme & Colors", path: "/admin/theme", group: "design" },
 
-  // ── الأدوات (TOOLS) ──
-  { icon: Database, label: "قاعدة البيانات المباشرة", path: "/admin/database", group: "tools" },
-  { icon: Server, label: "صحة النظام والملفات", path: "/admin/system", group: "tools" },
-  { icon: Brain, label: "مركز الذكاء الاصطناعي", path: "/admin/ai-command", group: "tools" },
-  { icon: Globe, label: "إدارة محركات البحث (SEO)", path: "/admin/seo", group: "tools" },
-  { icon: FolderOpen, label: "مكتبة الوسائط (Media)", path: "/admin/media", group: "tools" },
-  { icon: HardDrive, label: "النسخ الاحتياطي والتصدير", path: "/admin/backup", group: "tools" },
-  { icon: Upload, label: "استيراد البيانات", path: "/admin/import", group: "tools" },
-  { icon: ShieldCheck, label: "الصلاحيات (Permissions)", path: "/admin/permissions", group: "tools" },
-  { icon: FileText, label: "سجل العمليات (Audit Log)", path: "/admin/audit-log", group: "tools" },
+  // ── System & Access ──
+  { icon3d: "/icons/travel-3d/Contact.webp", label: "Admin Profile", path: "/admin/profile", group: "tools" },
+  { icon3d: "/icons/travel-3d/SecurityShield.webp", label: "Roles & Permissions", path: "/admin/permissions", group: "tools" },
+  { icon3d: "/icons/travel-3d/SecurityGate.webp", label: "SEO Manager", path: "/admin/seo", group: "tools" },
+  { icon3d: "/icons/travel-3d/CabinBagBundle.webp", label: "Database", path: "/admin/database", group: "tools" },
+  { icon3d: "/icons/travel-3d/BadgeCheck.webp", label: "System Health", path: "/admin/system", group: "tools" },
+  { icon3d: "/icons/travel-3d/SaveMoney.webp", label: "Backup & Export", path: "/admin/backup", group: "tools" },
+  { icon3d: "/icons/travel-3d/AirportParking.webp", label: "Import Data", path: "/admin/import", group: "tools" },
+  { icon3d: "/icons/travel-3d/PassporteVisa.webp", label: "Audit Log", path: "/admin/audit-log", group: "tools" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "admin-sidebar-width";
@@ -268,7 +245,7 @@ export default function AdminLayout({
       <div className="flex items-center justify-center min-h-screen bg-[var(--theme-surface)]">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <div className="w-16 h-16 rounded-full bg-[var(--theme-primary)]/10 border border-[var(--theme-primary)]/30 flex items-center justify-center">
-            <Crown size={28} className="text-[var(--theme-primary)]" />
+            <img src="/icons/travel-3d/SecurityShield.webp" alt="" className="w-10 h-10 object-contain" />
           </div>
           <div className="flex flex-col items-center gap-4">
             <h1 className="text-2xl font-[var(--font-display)] font-bold text-white text-center">
@@ -306,7 +283,7 @@ export default function AdminLayout({
       <div className="flex items-center justify-center min-h-screen bg-[var(--theme-surface)]">
         <div className="flex flex-col items-center gap-6 p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center">
-            <Crown size={28} className="text-red-400" />
+            <img src="/icons/travel-3d/SecurityShield.webp" alt="" className="w-10 h-10 object-contain" />
           </div>
           <h1 className="text-2xl font-[var(--font-display)] font-bold text-white text-center">
             الوصول محظور · Admin Access Denied
@@ -368,9 +345,23 @@ function AdminLayoutContent({
   const { state, toggleSidebar } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [isResizing, setIsResizing] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [quickSearch, setQuickSearch] = useState("");
   const sidebarRef = useRef<HTMLDivElement>(null);
   const activeMenuItem = adminMenuItems.find((item) => item.path === location);
   const isMobile = useIsMobile();
+
+  const { data: drawerBookings } = trpc.bookings.listAll.useQuery({ limit: 100, offset: 0 });
+  const { data: drawerMessages } = trpc.contact.listAll.useQuery({ limit: 100, offset: 0 });
+  const { data: drawerUserStats } = trpc.users.stats.useQuery();
+  const drawerRevenue = Array.isArray(drawerBookings)
+    ? drawerBookings.reduce((s: number, b: any) => (b.status !== "cancelled" ? s + Number(b.totalPrice || 0) : s), 0)
+    : 0;
+  const drawerBookingsCount = Array.isArray(drawerBookings) ? drawerBookings.length : 0;
+  const drawerUnreadMsgs = Array.isArray(drawerMessages)
+    ? drawerMessages.filter((m: any) => m.status === "new").length
+    : 0;
+  const drawerTotalUsers = drawerUserStats?.total ?? 0;
 
   useEffect(() => {
     if (isCollapsed) {
@@ -409,43 +400,48 @@ function AdminLayoutContent({
   }, [isResizing, setSidebarWidth]);
 
   return (
-    <>
+    <div className="flex min-h-screen w-full bg-[#090d14] text-white">
       <div className="relative" ref={sidebarRef}>
         <Sidebar
           collapsible="icon"
-          className="border-r-0 bg-[var(--theme-surface)]"
+          className="border-r border-white/10 bg-[#0d1117]"
           disableTransition={isResizing}
         >
-          <SidebarHeader className="h-16 justify-center border-b border-white/5">
-            <div className="flex items-center gap-3 px-2 transition-all w-full">
-              <button
-                onClick={toggleSidebar}
-                className="h-8 w-8 flex items-center justify-center hover:bg-[var(--theme-primary)]/10 rounded-lg transition-colors focus:outline-none shrink-0"
-                aria-label="Toggle navigation"
-              >
-                <PanelLeft className="h-4 w-4 text-[var(--theme-primary)]/60" />
-              </button>
+          <SidebarHeader className="h-16 justify-center border-b border-white/10 bg-[#0d1117]">
+            <div className="flex items-center justify-between px-2.5 transition-all w-full">
               {!isCollapsed ? (
-                <div className="flex items-center gap-2 min-w-0">
-                  <Crown size={16} className="text-[var(--theme-primary)] shrink-0" />
-                  <span className="font-[var(--font-display)] font-semibold text-white tracking-tight truncate text-sm">
-                    Admin Panel
+                <div className="flex items-center gap-3 min-w-0">
+                  <img
+                    src="/logo-vanir-v2.png"
+                    alt="VANIR GROUP"
+                    className="h-9 w-auto object-contain shrink-0"
+                  />
+                  <div className="h-5 w-px bg-white/10 shrink-0" />
+                  <span className="font-semibold text-white/70 tracking-wider uppercase truncate text-[11px]">
+                    Admin
                   </span>
                 </div>
               ) : null}
+              <button
+                onClick={toggleSidebar}
+                className="h-8 w-8 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors focus:outline-none shrink-0"
+                aria-label="Toggle navigation"
+              >
+                <PanelLeft className="h-4 w-4 text-[#C69749]" />
+              </button>
             </div>
           </SidebarHeader>
 
-          <SidebarContent className="gap-0 bg-[var(--theme-surface)] overflow-y-auto">
+          <SidebarContent className="gap-0 bg-[#0d1117] overflow-y-auto">
             <SidebarMenu className="px-2 py-3">
               {(() => {
                 const groups = [
                   { key: "main", label: "" },
-                  { key: "content", label: "المحتوى (CONTENT)" },
-                  { key: "services", label: "الخدمات والتطبيق (APP & SERVICES)" },
-                  { key: "operations", label: "العمليات (OPERATIONS)" },
-                  { key: "design", label: "التصميم (DESIGN)" },
-                  { key: "tools", label: "الأدوات (TOOLS)" },
+                  { key: "operations", label: "Clients & Operations" },
+                  { key: "content", label: "Content & Media" },
+                  { key: "services", label: "Services & App" },
+                  { key: "design", label: "Design & Layout" },
+                  { key: "tools", label: "System & Access" },
                 ];
                 return groups.map(group => {
                   const items = adminMenuItems.filter(i => i.group === group.key);
@@ -453,7 +449,7 @@ function AdminLayoutContent({
                   return (
                     <div key={group.key}>
                       {group.label && !isCollapsed && (
-                        <p className="text-[10px] uppercase tracking-wider text-white/20 font-semibold px-3 pt-4 pb-1">{group.label}</p>
+                        <p className="text-[10px] uppercase tracking-wider text-white/35 font-bold px-3 pt-4 pb-1">{group.label}</p>
                       )}
                       {group.label && isCollapsed && <div className="h-2" />}
                       {items.map(item => {
@@ -464,16 +460,18 @@ function AdminLayoutContent({
                               isActive={isActive}
                               onClick={() => setLocation(item.path)}
                               tooltip={item.label}
-                              className={`h-9 transition-all font-[var(--font-body)] text-sm ${
+                              className={`!h-13 py-2 px-2.5 gap-3.5 transition-all text-[12.5px] font-medium rounded-xl mb-1 ${
                                 isActive
-                                  ? "bg-[var(--theme-primary)]/15 text-[var(--theme-primary)] border border-white/10"
-                                  : "text-white/60 hover:text-white hover:bg-[var(--theme-primary)]/5"
+                                  ? "bg-gradient-to-r from-[#C69749]/20 via-[#E5C17A]/10 to-transparent text-[#E5C17A] font-semibold border border-[#C69749]/40 shadow-sm"
+                                  : "text-white/80 hover:text-white hover:bg-white/5"
                               }`}
                             >
-                              <item.icon
-                                className={`h-4 w-4 ${isActive ? "text-[var(--theme-primary)]" : ""}`}
+                              <img
+                                src={item.icon3d}
+                                alt=""
+                                className="h-10 w-10 min-h-[40px] min-w-[40px] object-contain shrink-0 drop-shadow-[0_4px_10px_rgba(0,0,0,0.75)]"
                               />
-                              <span>{item.label}</span>
+                              <span className="truncate">{item.label}</span>
                             </SidebarMenuButton>
                           </SidebarMenuItem>
                         );
@@ -486,52 +484,65 @@ function AdminLayoutContent({
 
           </SidebarContent>
 
-          <SidebarFooter className="p-3 border-t border-white/5 bg-[var(--theme-surface)]">
-            {/* Back to website link - moved to footer to prevent overlap */}
+          <SidebarFooter className="p-3 border-t border-white/10 bg-[#0d1117]">
             <SidebarMenu className="mb-2">
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => setLocation("/")}
                   tooltip="Back to website"
-                  className="h-9 text-white/40 hover:text-[var(--theme-primary)] hover:bg-[var(--theme-primary)]/5 font-[var(--font-body)] text-sm"
+                  className="h-10 text-white/60 hover:text-[#D4A853] hover:bg-white/5 text-sm rounded-xl"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  <span>Back to Website</span>
+                  <span>العودة للموقع</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-[var(--theme-primary)]/5 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none">
-                  <Avatar className="h-9 w-9 border border-[var(--theme-primary)]/30 shrink-0">
-                    <AvatarFallback className="text-xs font-medium bg-[var(--theme-primary)]/10 text-[var(--theme-primary)]">
-                      {user?.name?.charAt(0).toUpperCase()}
+                <button className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-white/5 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none">
+                  <Avatar className="h-9 w-9 border border-[#D4A853]/40 shrink-0">
+                    <AvatarFallback className="text-xs font-bold bg-[#D4A853]/15 text-[#D4A853]">
+                      {user?.name?.charAt(0).toUpperCase() || "A"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
-                    <p className="text-sm font-[var(--font-body)] font-medium truncate leading-none text-white">
-                      {user?.name || "-"}
+                    <p className="text-sm font-semibold truncate leading-none text-white">
+                      {user?.name || "Vanir Admin"}
                     </p>
-                    <p className="text-xs text-white/40 truncate mt-1.5 font-[var(--font-body)]">
-                      Admin
+                    <p className="text-xs text-white/45 truncate mt-1">
+                      Administrator
                     </p>
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-[var(--theme-surface)] border-white/10">
+              <DropdownMenuContent align="end" className="w-56 bg-[#141923] border-white/10 text-white">
+                <DropdownMenuItem
+                  onClick={() => setLocation("/admin/profile")}
+                  className="cursor-pointer text-white/85 focus:text-[#E5C17A] focus:bg-white/5"
+                >
+                  <img src="/icons/travel-3d/Contact.webp" alt="" className="mr-2 h-5 w-5 object-contain" />
+                  <span>ملفي الشخصي (Profile)</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setLocation("/admin/permissions")}
+                  className="cursor-pointer text-white/85 focus:text-[#E5C17A] focus:bg-white/5"
+                >
+                  <img src="/icons/travel-3d/SecurityShield.webp" alt="" className="mr-2 h-5 w-5 object-contain" />
+                  <span>الأدوار والصلاحيات (Roles)</span>
+                </DropdownMenuItem>
                 <DropdownMenuItem
                   onClick={logout}
-                  className="cursor-pointer text-red-400 focus:text-red-400 focus:bg-red-500/10"
+                  className="cursor-pointer text-red-400 focus:text-red-300 focus:bg-red-500/10"
                 >
                   <LogOut className="mr-2 h-4 w-4" />
-                  <span className="font-[var(--font-body)]">Sign out</span>
+                  <span>Sign out</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SidebarFooter>
         </Sidebar>
         <div
-          className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-[var(--theme-primary)]/20 transition-colors ${isCollapsed ? "hidden" : ""}`}
+          className={`absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-[#D4A853]/30 transition-colors ${isCollapsed ? "hidden" : ""}`}
           onMouseDown={() => {
             if (isCollapsed) return;
             setIsResizing(true);
@@ -540,23 +551,171 @@ function AdminLayoutContent({
         />
       </div>
 
-      <SidebarInset className="bg-[var(--theme-surface)]">
-        {isMobile && (
-          <div className="flex border-b border-white/5 h-14 items-center justify-between bg-[var(--theme-surface)]/95 px-2 backdrop-blur sticky top-0 z-40">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="h-9 w-9 rounded-lg bg-[var(--theme-surface)]" />
-              <div className="flex items-center gap-3">
-                <div className="flex flex-col gap-1">
-                  <span className="tracking-tight text-white font-[var(--font-body)]">
-                    {activeMenuItem?.label ?? "Admin"}
-                  </span>
-                </div>
-              </div>
+      <SidebarInset className="bg-[#090d14] min-w-0 flex-1">
+        {/* Modern Dark Luxury Top Header Bar */}
+        <header className="sticky top-0 z-30 h-16 bg-[#0d1117]/95 backdrop-blur border-b border-white/10 px-4 md:px-6 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg bg-white/5 text-white" />}
+            <div className="flex items-center gap-3 min-w-0">
+              {activeMenuItem ? (
+                <img src={activeMenuItem.icon3d} alt="" className="w-11 h-11 object-contain shrink-0" />
+              ) : (
+                <img src="/logo-vanir-v2.png" alt="VANIR" className="h-10 w-auto object-contain shrink-0" />
+              )}
+              <span className="font-bold text-white text-sm md:text-base truncate">
+                {activeMenuItem?.label ?? "لوحة التحكم"}
+              </span>
             </div>
           </div>
-        )}
-        <main className="flex-1 p-4 md:p-6">{children}</main>
+
+          <div className="flex items-center gap-2.5">
+            <div className="hidden md:flex items-center relative">
+              <Search className="w-4 h-4 text-white/40 absolute left-3" />
+              <input
+                type="text"
+                value={quickSearch}
+                onChange={(e) => setQuickSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && quickSearch.trim()) {
+                    const match = adminMenuItems.find((m) =>
+                      m.label.toLowerCase().includes(quickSearch.trim().toLowerCase())
+                    );
+                    if (match) setLocation(match.path);
+                  }
+                }}
+                placeholder="Search pages..."
+                className="pl-9 pr-4 py-1.5 rounded-full bg-[#141923] border border-white/10 text-xs text-white placeholder:text-white/40 focus:outline-none focus:border-[#D4A853] w-56"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setLocation("/")}
+              title="العودة للموقع (بدون تسجيل خروج)"
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#141923] hover:bg-[#D4A853]/15 border border-[#D4A853]/40 text-xs font-semibold text-[#E5C17A] transition-colors"
+            >
+              <img src="/icons/travel-3d/DestinationsGlobe.webp" alt="" className="w-5 h-5 object-contain" />
+              <span className="hidden sm:inline">View Site</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setLocation("/admin/ai-studio")}
+              title="مركز الذكاء الاصطناعي الموحد"
+              className="hidden sm:inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#141923] hover:bg-white/10 border border-[#D4A853]/30 text-xs font-semibold text-white transition-colors"
+            >
+              <img src="/icons/travel-3d/SeamlessJourney.webp" alt="" className="w-6 h-6 object-contain" />
+              <span>AI Hub</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setLocation("/admin/messages")}
+              className="w-10 h-10 rounded-full bg-[#141923] hover:bg-white/10 border border-white/10 flex items-center justify-center relative text-white/80"
+              aria-label="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {drawerUnreadMsgs > 0 && (
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500 absolute top-2 right-2" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDrawerOpen((v) => !v)}
+              className="w-10 h-10 rounded-full bg-[#141923] hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/80"
+              aria-label="Quick Workspace Drawer"
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 md:p-6 max-w-[1600px] w-full mx-auto">{children}</main>
       </SidebarInset>
-    </>
+
+      {/* Right Quick Workspace Slide-Over Drawer (100% Live Data) */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end" onClick={() => setDrawerOpen(false)}>
+          <div
+            className="w-80 bg-[#0d1117] h-full border-l border-white/10 shadow-2xl p-5 flex flex-col gap-5 overflow-y-auto text-white"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <img src="/logo-vanir-v2.png" alt="VANIR" className="h-7 w-auto object-contain" />
+                <span className="text-sm font-bold text-white">Quick Workspace</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/60 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Live Revenue Card */}
+            <div className="rounded-2xl p-4 bg-gradient-to-br from-[#D4A853] via-[#b8862d] to-[#8a5f17] text-black shadow-lg">
+              <p className="text-[11px] font-bold uppercase tracking-wider opacity-80">LIVE BOOKINGS REVENUE</p>
+              <p className="text-2xl font-extrabold mt-1">${drawerRevenue.toLocaleString()}</p>
+              <p className="text-[11px] font-semibold opacity-85 mt-2">{drawerBookingsCount} Total Bookings • Duffel Live</p>
+            </div>
+
+            {/* Pinned Modules with Large 3D Icons */}
+            <div>
+              <p className="text-xs font-bold text-white/50 mb-2.5">Quick Modules</p>
+              <div className="grid grid-cols-2 gap-2.5">
+                {[
+                  { label: "AI Hub", path: "/admin/ai-studio", icon: "/icons/travel-3d/SeamlessJourney.webp" },
+                  { label: "Clients & Profiles", path: "/admin/users", icon: "/icons/travel-3d/Contact.webp" },
+                  { label: "Photo Library", path: "/admin/media", icon: "/icons/travel-3d/CameraHat.webp" },
+                  { label: "Hotels", path: "/admin/hotels", icon: "/icons/travel-3d/HotelBed.webp" },
+                ].map((app) => (
+                  <button
+                    key={app.path}
+                    type="button"
+                    onClick={() => {
+                      setLocation(app.path);
+                      setDrawerOpen(false);
+                    }}
+                    className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#141923] hover:bg-white/10 border border-white/10 transition-colors text-left"
+                  >
+                    <img src={app.icon} alt="" className="w-8 h-8 object-contain shrink-0" />
+                    <span className="text-xs font-semibold text-white truncate">{app.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Live Operational Counters */}
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setLocation("/admin/users");
+                  setDrawerOpen(false);
+                }}
+                className="p-3 rounded-xl bg-[#141923] hover:bg-white/10 border border-white/10 text-left transition-colors"
+              >
+                <p className="text-xl font-extrabold text-white">{drawerTotalUsers}</p>
+                <p className="text-[10px] font-semibold text-white/50 uppercase">Registered Clients</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setLocation("/admin/messages");
+                  setDrawerOpen(false);
+                }}
+                className="p-3 rounded-xl bg-[#141923] hover:bg-white/10 border border-white/10 text-left transition-colors"
+              >
+                <p className="text-xl font-extrabold text-[#D4A853]">{drawerUnreadMsgs}</p>
+                <p className="text-[10px] font-semibold text-white/50 uppercase">New Messages</p>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
