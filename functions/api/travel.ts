@@ -648,6 +648,100 @@ async function searchHotelsSearchApi(env: Env, params: any) {
   return { provider: "searchapi", hotels };
 }
 
+async function searchFlightsSerpApi(env: Env, params: any) {
+  if (!env.SERPAPI_KEY) return null;
+
+  const origin = String(params.origin || "CAI").toUpperCase().slice(0, 3);
+  const destination = String(params.destination || "DXB").toUpperCase().slice(0, 3);
+  const outboundDate = String(
+    params.departureDate || new Date(Date.now() + 7 * 86400000).toISOString().split("T")[0]
+  );
+  const returnDate = params.returnDate ? String(params.returnDate) : "";
+  const adults = Math.max(1, Number(params.adults || 1));
+  const currency = String(params.currency || "USD").toUpperCase();
+
+  const cabinKey = String(params.cabin || "economy").toLowerCase();
+  const travelClassMap: Record<string, string> = {
+    economy: "1",
+    premium_economy: "2",
+    business: "3",
+    first: "4",
+  };
+  const travelClass = travelClassMap[cabinKey] || "1";
+
+  const sp = new URLSearchParams({
+    engine: "google_flights",
+    departure_id: origin,
+    arrival_id: destination,
+    outbound_date: outboundDate,
+    type: returnDate ? "1" : "2", // 1 = Round trip, 2 = One way
+    travel_class: travelClass,
+    adults: String(adults),
+    currency,
+    hl: "en",
+    api_key: env.SERPAPI_KEY.trim(),
+  });
+  if (returnDate) sp.set("return_date", returnDate);
+  if (params.directOnly) sp.set("stops", "1"); // 1 = Nonstop only
+
+  const res = await fetch(`https://serpapi.com/search.json?${sp.toString()}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!res.ok) return null;
+  const payload: any = await res.json();
+  if (payload?.error) return null;
+
+  const rawOffers = [
+    ...(Array.isArray(payload?.best_flights) ? payload.best_flights : []),
+    ...(Array.isArray(payload?.other_flights) ? payload.other_flights : []),
+  ];
+
+  const offers = rawOffers.slice(0, 25).map((f: any, idx: number) => {
+    const legs: any[] = Array.isArray(f?.flights) ? f.flights : [];
+    const firstLeg = legs[0] || {};
+    const lastLeg = legs[legs.length - 1] || firstLeg;
+    const totalMins = Number(f?.total_duration || firstLeg?.duration || 0);
+    const hrs = Math.floor(totalMins / 60);
+    const mins = totalMins % 60;
+    const isoDuration = totalMins > 0 ? `PT${hrs}H${mins}M` : "";
+    const flightNo = String(firstLeg?.flight_number || "").replace(/\s+/g, "");
+    const airlineCode = flightNo.slice(0, 2).toUpperCase();
+    const priceNum = Number(f?.price || 0);
+
+    return {
+      id: f?.departure_token || f?.booking_token || `serpapi_flt_${idx}_${Date.now()}`,
+      offerId: f?.departure_token || f?.booking_token || `serpapi_flt_${idx}`,
+      provider: "serpapi_google_flights",
+      liveBookable: false,
+      airline: firstLeg?.airline || "International Airline",
+      airlineCode,
+      airlineLogo: f?.airline_logo || firstLeg?.airline_logo || "",
+      flightNumber: flightNo,
+      airplane: firstLeg?.airplane || "",
+      legroom: firstLeg?.legroom || "",
+      origin: firstLeg?.departure_airport?.id || origin,
+      originName: firstLeg?.departure_airport?.name || origin,
+      destination: lastLeg?.arrival_airport?.id || destination,
+      destinationName: lastLeg?.arrival_airport?.name || destination,
+      departureTime: firstLeg?.departure_airport?.time || "",
+      arrivalTime: lastLeg?.arrival_airport?.time || "",
+      departureAt: firstLeg?.departure_airport?.time || "",
+      arrivalAt: lastLeg?.arrival_airport?.time || "",
+      duration: isoDuration,
+      durationMinutes: totalMins,
+      stops: Math.max(0, legs.length - 1),
+      layovers: Array.isArray(f?.layovers) ? f.layovers : [],
+      cabin: cabinKey,
+      price: priceNum,
+      totalAmount: priceNum,
+      currency,
+      extensions: Array.isArray(f?.extensions) ? f.extensions : [],
+    };
+  }).filter((o: any) => o.price > 0);
+
+  return offers.length > 0 ? { provider: "serpapi_google_flights", live: true, offers } : null;
+}
+
 async function searchFlightsSearchApi(env: Env, params: any) {
   if (!env.SEARCHAPI_KEY) return null;
 
@@ -721,7 +815,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         serpapi: {
           configured: Boolean(env.SERPAPI_KEY),
           mode: "live",
-          capabilities: ["search_hotels", "hotel_property", "airbnb_search", "airbnb_property"],
+          capabilities: ["search_flights", "search_hotels", "hotel_property", "airbnb_search", "airbnb_property"],
         },
         searchapi: {
           configured: Boolean(env.SEARCHAPI_KEY),
@@ -767,6 +861,25 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
 
     if (action === "search_flights") {
+      // 1. Live Duffel production token (if live key is configured)
+      if (env.DUFFEL_ACCESS_TOKEN?.startsWith("duffel_live_")) {
+        try {
+          const result = await searchFlightsDuffel(env, body);
+          if (result && Array.isArray((result as any).offers) && (result as any).offers.length > 0) {
+            return jsonResponse({ ok: true, ...result });
+          }
+        } catch {}
+      }
+      // 2. Live Google Flights via SerpApi (real airlines, logos, schedules & USD rates)
+      if (env.SERPAPI_KEY) {
+        try {
+          const result = await searchFlightsSerpApi(env, body);
+          if (result && Array.isArray((result as any).offers) && (result as any).offers.length > 0) {
+            return jsonResponse({ ok: true, ...result });
+          }
+        } catch {}
+      }
+      // 3. Duffel fallback (sandbox/test or secondary)
       if (env.DUFFEL_ACCESS_TOKEN) {
         try {
           const result = await searchFlightsDuffel(env, body);
@@ -784,14 +897,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         } catch {}
       }
       if (env.SEARCHAPI_KEY) {
-        const result = await searchFlightsSearchApi(env, body);
-        if (result) return jsonResponse({ ok: true, ...result });
+        try {
+          const result = await searchFlightsSearchApi(env, body);
+          if (result && Array.isArray((result as any).offers) && (result as any).offers.length > 0) {
+            return jsonResponse({ ok: true, ...result });
+          }
+        } catch {}
       }
       return jsonResponse({
         ok: false,
         needsConfiguration: true,
         error:
-          "No live flight provider configured yet. Add DUFFEL_ACCESS_TOKEN or SEARCHAPI_KEY in environment secrets.",
+          "No live flight provider returned results. Verify SERPAPI_KEY or DUFFEL_ACCESS_TOKEN in environment secrets.",
         offers: [],
       });
     }
