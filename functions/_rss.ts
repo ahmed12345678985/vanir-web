@@ -185,7 +185,7 @@ export async function buildRssResponse(): Promise<Response> {
 
   const sortedPosts = Array.from(mergedBySlug.values())
     .sort((a, b) => b.publishedAt - a.publishedAt)
-    .slice(0, 70);
+    .slice(0, 120);
 
   const lastBuildDate = new Date(
     sortedPosts[0]?.publishedAt || Date.now()

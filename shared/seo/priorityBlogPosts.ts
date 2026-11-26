@@ -1,4 +1,5 @@
 import { EDITORIAL_LUXURY_50_POSTS } from "./editorialLibrary50";
+import { GLOBAL_LUXURY_50_POSTS } from "./globalEditorialLibrary50";
 
 export interface PriorityBlogPost {
   id: number;
@@ -22,6 +23,7 @@ export interface PriorityBlogPost {
 }
 
 export const PRIORITY_SEO_BLOG_POSTS: PriorityBlogPost[] = [
+  ...GLOBAL_LUXURY_50_POSTS,
   ...EDITORIAL_LUXURY_50_POSTS,
   {
     id: 201,
