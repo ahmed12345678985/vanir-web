@@ -1,37 +1,11 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
+import { PHARAONIC_AVATARS, resolveUserAvatar } from "@/lib/pharaonicAvatars";
 import { Button } from "@/components/ui/button";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  Shield,
-  MapPin,
-  Star,
-  Sparkles,
-  CreditCard,
-  Clock,
-  Edit3,
-  LogOut,
-  ChevronRight,
-  Camera,
-  Plane,
-  MessageSquare,
-  Zap,
-  Crown,
-  Settings,
-  Bell,
-  Heart,
-  Award,
-  X,
-  Check,
-  Loader2,
-  Upload,
-} from "lucide-react";
+import { User, Mail, Phone, Calendar, Shield, MapPin, Star, Compass, CreditCard, Clock, Edit3, LogOut, ChevronRight, Camera, Plane, MessageSquare, Zap, Settings, Bell, Heart, Award, X, Check, Loader2, Upload } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import PageMeta from "@/components/PageMeta";
@@ -116,6 +90,9 @@ function EditProfileDialog({
       } finally {
         setUploadingAvatar(false);
       }
+    } else if (avatarPreview && avatarPreview !== user.avatarUrl) {
+      // User picked a Royal Pharaonic Avatar preset
+      finalAvatarUrl = avatarPreview;
     } else if (avatarPreview === null && user.avatarUrl) {
       // User removed their avatar
       finalAvatarUrl = null;
@@ -204,6 +181,37 @@ function EditProfileDialog({
                 </button>
               )}
             </div>
+
+            {/* Royal Pharaonic Avatar Picker */}
+            <div className="w-full pt-2 border-t border-white/10">
+              <p className="text-[11px] font-semibold text-[#D4A853] mb-2 text-center">
+                Or Choose a Royal Pharaonic Avatar · اختر أفتار فرعوني ملكي
+              </p>
+              <div className="grid grid-cols-6 gap-2">
+                {PHARAONIC_AVATARS.map((av) => {
+                  const isSelected = avatarPreview === av.url;
+                  return (
+                    <button
+                      key={av.id}
+                      type="button"
+                      title={`${av.name} — ${av.nameAr}`}
+                      onClick={() => {
+                        setAvatarFile(null);
+                        setAvatarPreview(av.url);
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all ${
+                        isSelected
+                          ? "border-[#E5C17A] ring-2 ring-[#D4A853]/50 scale-105"
+                          : "border-white/15 hover:border-[#D4A853]/60 opacity-85 hover:opacity-100"
+                      }`}
+                    >
+                      <img src={av.url} alt={av.name} className="w-full h-full object-cover" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
           {/* Name */}
@@ -264,12 +272,98 @@ function EditProfileDialog({
   );
 }
 
+interface SavedTraveler {
+  id: string;
+  fullName: string;
+  passportNumber: string;
+  nationality: string;
+  dob: string;
+}
+
+interface FlightPrefs {
+  seatType: "Window" | "Aisle" | "Extra Legroom" | "First / Suite";
+  planeArea: "Front Cabin" | "Middle Cabin" | "Exit Row";
+  baggage: "Carry-on only (8kg)" | "1 Checked Bag (23kg)" | "2 VIP Bags (32kg each)";
+}
+
+type ProfileSection =
+  | "overview"
+  | "bookings"
+  | "travelers"
+  | "flight_preferences"
+  | "privacy"
+  | "reviews"
+  | "ai"
+  | "settings";
+
 /* ─── Main Profile Page ─── */
 export default function Profile() {
   const { user, loading, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const [activeSection, setActiveSection] = useState<"overview" | "bookings" | "reviews" | "ai" | "settings">("overview");
+  const [activeSection, setActiveSection] = useState<ProfileSection>(() => {
+    if (typeof window !== "undefined") {
+      const t = new URLSearchParams(window.location.search).get("tab");
+      if (t === "trips" || t === "bookings") return "bookings";
+      if (t === "travelers") return "travelers";
+      if (t === "flight_preferences") return "flight_preferences";
+      if (t === "privacy") return "privacy";
+      if (t === "settings") return "settings";
+      if (t === "reviews") return "reviews";
+      if (t === "ai") return "ai";
+    }
+    return "overview";
+  });
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  // Saved Travelers State
+  const [savedTravelers, setSavedTravelers] = useState<SavedTraveler[]>(() => {
+    try {
+      const raw = localStorage.getItem("vanir_saved_travelers");
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [addingTraveler, setAddingTraveler] = useState(false);
+  const [newTraveler, setNewTraveler] = useState({ fullName: "", passportNumber: "", nationality: "", dob: "" });
+
+  // Flight Preferences State
+  const [flightPrefs, setFlightPrefs] = useState<FlightPrefs>(() => {
+    try {
+      const raw = localStorage.getItem("vanir_flight_preferences");
+      return raw
+        ? JSON.parse(raw)
+        : { seatType: "Window", planeArea: "Front Cabin", baggage: "1 Checked Bag (23kg)" };
+    } catch {
+      return { seatType: "Window", planeArea: "Front Cabin", baggage: "1 Checked Bag (23kg)" };
+    }
+  });
+  const [editingFlightPrefs, setEditingFlightPrefs] = useState(false);
+
+  // Notification Preferences State
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>(() => {
+    try {
+      const raw = localStorage.getItem("vanir_notif_prefs");
+      return raw
+        ? JSON.parse(raw)
+        : { "Email Notifications": true, "Marketing Emails": true, "Wishlist Alerts": true };
+    } catch {
+      return { "Email Notifications": true, "Marketing Emails": true, "Wishlist Alerts": true };
+    }
+  });
+
+  useEffect(() => {
+    const syncTab = () => {
+      const t = new URLSearchParams(window.location.search).get("tab");
+      if (t === "trips" || t === "bookings") setActiveSection("bookings");
+      else if (t === "travelers") setActiveSection("travelers");
+      else if (t === "flight_preferences") setActiveSection("flight_preferences");
+      else if (t === "privacy") setActiveSection("privacy");
+      else if (t === "settings") setActiveSection("settings");
+    };
+    window.addEventListener("popstate", syncTab);
+    return () => window.removeEventListener("popstate", syncTab);
+  }, []);
 
   const utils = trpc.useUtils();
 
@@ -354,11 +448,14 @@ export default function Profile() {
   }
 
   const sidebarItems = [
-    { id: "overview" as const, label: "Overview", icon: User },
-    { id: "bookings" as const, label: "My Bookings", icon: Plane },
-    { id: "reviews" as const, label: "My Reviews", icon: MessageSquare },
-    { id: "ai" as const, label: "AI Studio", icon: Sparkles },
-    { id: "settings" as const, label: "Settings", icon: Settings },
+    { id: "overview" as const, label: "Overview", iconImg: "/icons/travel-3d/CameraHat.webp" },
+    { id: "bookings" as const, label: "My Trips & Bookings", iconImg: "/icons/travel-3d/PlaneInBottle.webp" },
+    { id: "settings" as const, label: "Account Settings", iconImg: "/icons/travel-3d/NotificationBell.webp" },
+    { id: "travelers" as const, label: "Saved Travelers", iconImg: "/icons/travel-3d/PassporteVisa.webp" },
+    { id: "flight_preferences" as const, label: "Flight Preferences", iconImg: "/icons/travel-3d/SeatingEmpty.webp" },
+    { id: "privacy" as const, label: "Privacy & Security", iconImg: "/icons/travel-3d/SecurityShield.webp" },
+    { id: "reviews" as const, label: "My Reviews", iconImg: "/icons/travel-3d/BadgeCheck.webp" },
+    { id: "ai" as const, label: "AI Studio", iconImg: "/icons/travel-3d/MobileeSim.webp" },
   ];
 
   const stats = profileStats || { bookings: 0, reviews: 0, aiCredits: 0 };
@@ -403,16 +500,12 @@ export default function Profile() {
           <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
             {/* Avatar */}
             <div className="relative group">
-              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden border-2 border-[var(--theme-primary)]/30 shadow-lg shadow-[var(--theme-primary)]/10">
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name || "User"} className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full bg-gradient-to-br from-[var(--theme-primary)] to-[#c49a48] flex items-center justify-center">
-                    <span className="text-3xl md:text-4xl font-bold text-black">
-                      {(user.name || "U").charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                )}
+              <div className="w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden border-2 border-[#D4A853]/50 shadow-lg shadow-[#D4A853]/15">
+                <img
+                  src={resolveUserAvatar(user.avatarUrl, user.email || user.name)}
+                  alt={user.name || "User"}
+                  className="w-full h-full object-cover"
+                />
               </div>
               <button
                 onClick={() => setEditDialogOpen(true)}
@@ -430,7 +523,7 @@ export default function Profile() {
                 </h1>
                 {user.role === "admin" && (
                   <span className="px-2.5 py-0.5 bg-[var(--theme-primary)]/10 border border-[var(--theme-primary)]/30 rounded-lg text-[var(--theme-primary)] text-xs font-semibold flex items-center gap-1">
-                    <Crown className="w-3 h-3" />
+                    <Shield className="w-3 h-3" />
                     Admin
                   </span>
                 )}
@@ -511,7 +604,7 @@ export default function Profile() {
                       : "text-gray-400 hover:text-white hover:bg-[#2a2a3e]/50"
                   }`}
                 >
-                  <item.icon className="w-4 h-4" />
+                  <img src={item.iconImg} alt="" className="w-5 h-5 object-contain shrink-0" />
                   {item.label}
                 </button>
               ))}
@@ -527,7 +620,7 @@ export default function Profile() {
                 <div className="bg-gradient-to-r from-[var(--theme-primary)]/10 to-[#1a1a2e] border border-[var(--theme-primary)]/20 rounded-2xl p-6">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-xl bg-[var(--theme-primary)]/10 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-6 h-6 text-[var(--theme-primary)]" />
+                      <Compass className="w-6 h-6 text-[var(--theme-primary)]" />
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-white mb-1">
@@ -546,7 +639,7 @@ export default function Profile() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                     {[
                       { label: "Book a Trip", icon: Plane, href: "/booking", color: "#D4A853" },
-                      { label: "AI Image Studio", icon: Sparkles, href: "/ai-studio", color: "#818CF8" },
+                      { label: "AI Image Studio", icon: Compass, href: "/ai-studio", color: "#818CF8" },
                       { label: "Write a Review", icon: Star, href: "/reviews", color: "#34D399" },
                       { label: "Browse Gallery", icon: Camera, href: "/gallery", color: "#F472B6" },
                       { label: "View Offers", icon: CreditCard, href: "/offers", color: "#FB923C" },
@@ -691,7 +784,7 @@ export default function Profile() {
                 <div className="bg-gradient-to-r from-[#818CF8]/10 to-[#1a1a2e] border border-[#818CF8]/20 rounded-2xl p-6">
                   <div className="flex items-start gap-4">
                     <div className="w-12 h-12 rounded-xl bg-[#818CF8]/10 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-6 h-6 text-[#818CF8]" />
+                      <Compass className="w-6 h-6 text-[#818CF8]" />
                     </div>
                     <div className="flex-1">
                       <h3 className="text-lg font-semibold text-white mb-1">AI Studio</h3>
@@ -701,7 +794,7 @@ export default function Profile() {
                           onClick={() => setLocation("/ai-studio")}
                           className="bg-[#818CF8] hover:bg-[#6366F1] text-white text-sm rounded-xl px-4 py-2"
                         >
-                          <Sparkles className="w-4 h-4 mr-2" />
+                          <Compass className="w-4 h-4 mr-2" />
                           Open AI Studio
                         </Button>
                         <Button
@@ -817,10 +910,22 @@ export default function Profile() {
                           </div>
                         </div>
                         <button
-                          onClick={() => toast.info("Preference settings coming soon!")}
-                          className="w-10 h-6 bg-[var(--theme-primary)]/20 rounded-full relative cursor-pointer hover:bg-[var(--theme-primary)]/30 transition-colors"
+                          type="button"
+                          onClick={() => {
+                            const updated = { ...notifPrefs, [pref.label]: !notifPrefs[pref.label] };
+                            setNotifPrefs(updated);
+                            try { localStorage.setItem("vanir_notif_prefs", JSON.stringify(updated)); } catch {}
+                            toast.success(`${pref.label} ${updated[pref.label] ? "enabled" : "disabled"}`);
+                          }}
+                          className={`w-10 h-6 rounded-full relative cursor-pointer transition-colors ${
+                            notifPrefs[pref.label] ? "bg-[var(--theme-primary)]/30" : "bg-white/10"
+                          }`}
                         >
-                          <div className="w-4 h-4 bg-[var(--theme-primary)] rounded-full absolute top-1 right-1 shadow-sm" />
+                          <div
+                            className={`w-4 h-4 rounded-full absolute top-1 shadow-sm transition-all ${
+                              notifPrefs[pref.label] ? "bg-[var(--theme-primary)] right-1" : "bg-gray-400 left-1"
+                            }`}
+                          />
                         </button>
                       </div>
                     ))}
@@ -838,6 +943,252 @@ export default function Profile() {
                   >
                     Delete Account
                   </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Saved Travelers Section */}
+            {activeSection === "travelers" && (
+              <div className="space-y-6">
+                <div className="bg-[var(--card)]/80 border border-[#2a2a3e] rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Saved Travelers</h3>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Save passenger details for faster flight &amp; hotel bookings and automatic check-in.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      onClick={() => setAddingTraveler((p) => !p)}
+                      className="bg-[var(--theme-primary)] text-black hover:bg-[#c49a48] text-xs font-semibold rounded-xl"
+                    >
+                      {addingTraveler ? "Cancel" : "Add a traveler"}
+                    </Button>
+                  </div>
+
+                  {/* Account Owner Card */}
+                  <div className="p-4 rounded-xl bg-[#0d0d1a] border border-[var(--theme-primary)]/25 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">{user.name || "Vanir Traveler"}</p>
+                      <span className="inline-block mt-1 text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-gray-300">
+                        Account owner
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setEditDialogOpen(true)}
+                      className="text-xs font-semibold text-[var(--theme-primary)] hover:underline"
+                    >
+                      Edit
+                    </button>
+                  </div>
+
+                  {addingTraveler && (
+                    <div className="p-4 rounded-xl bg-[#0d0d1a] border border-white/10 space-y-3">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input
+                          type="text"
+                          placeholder="Full Name (as on passport)"
+                          value={newTraveler.fullName}
+                          onChange={(e) => setNewTraveler((p) => ({ ...p, fullName: e.target.value }))}
+                          className="bg-black/50 border border-white/15 rounded-lg px-3 py-2 text-xs text-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Passport Number"
+                          value={newTraveler.passportNumber}
+                          onChange={(e) => setNewTraveler((p) => ({ ...p, passportNumber: e.target.value }))}
+                          className="bg-black/50 border border-white/15 rounded-lg px-3 py-2 text-xs text-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Nationality (e.g. Egyptian)"
+                          value={newTraveler.nationality}
+                          onChange={(e) => setNewTraveler((p) => ({ ...p, nationality: e.target.value }))}
+                          className="bg-black/50 border border-white/15 rounded-lg px-3 py-2 text-xs text-white"
+                        />
+                        <input
+                          type="date"
+                          value={newTraveler.dob}
+                          onChange={(e) => setNewTraveler((p) => ({ ...p, dob: e.target.value }))}
+                          className="bg-black/50 border border-white/15 rounded-lg px-3 py-2 text-xs text-white"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          if (!newTraveler.fullName.trim()) {
+                            toast.error("Please enter traveler's full name");
+                            return;
+                          }
+                          const updated = [...savedTravelers, { ...newTraveler, id: `trav-${Date.now()}` }];
+                          setSavedTravelers(updated);
+                          try { localStorage.setItem("vanir_saved_travelers", JSON.stringify(updated)); } catch {}
+                          setNewTraveler({ fullName: "", passportNumber: "", nationality: "", dob: "" });
+                          setAddingTraveler(false);
+                          toast.success("Traveler saved!");
+                        }}
+                        className="bg-[var(--theme-primary)] text-black hover:bg-[#c49a48] text-xs font-semibold"
+                      >
+                        Save Traveler
+                      </Button>
+                    </div>
+                  )}
+
+                  {savedTravelers.map((t) => (
+                    <div key={t.id} className="p-4 rounded-xl bg-[#0d0d1a] border border-[#2a2a3e] flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-white">{t.fullName}</p>
+                        <p className="text-xs text-gray-400">
+                          {t.nationality || "VIP Guest"} {t.passportNumber ? `• Passport: ${t.passportNumber}` : ""}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updated = savedTravelers.filter((x) => x.id !== t.id);
+                          setSavedTravelers(updated);
+                          try { localStorage.setItem("vanir_saved_travelers", JSON.stringify(updated)); } catch {}
+                          toast.success("Traveler removed");
+                        }}
+                        className="text-xs text-red-400 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Flight Preferences Section */}
+            {activeSection === "flight_preferences" && (
+              <div className="space-y-6">
+                <div className="bg-[var(--card)]/80 border border-[#2a2a3e] rounded-2xl p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">Flight Preferences</h3>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Save your preferred seating and baggage options for faster flight checkouts.
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setEditingFlightPrefs((p) => !p)}
+                      className="border-[var(--theme-primary)]/30 text-[var(--theme-primary)] text-xs rounded-xl"
+                    >
+                      {editingFlightPrefs ? "Done" : "Edit"}
+                    </Button>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-[#0d0d1a] border border-[#2a2a3e] space-y-2">
+                    <div className="flex items-center gap-2.5">
+                      <img src="/icons/travel-3d/SeatingEmpty.webp" alt="" className="w-6 h-6 object-contain" />
+                      <p className="text-sm font-semibold text-white">Seating Preferences</p>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Current: <span className="text-[var(--theme-primary)]">{flightPrefs.seatType} • {flightPrefs.planeArea}</span>
+                    </p>
+                    {editingFlightPrefs && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                        <select
+                          value={flightPrefs.seatType}
+                          onChange={(e) => {
+                            const next = { ...flightPrefs, seatType: e.target.value as FlightPrefs["seatType"] };
+                            setFlightPrefs(next);
+                            try { localStorage.setItem("vanir_flight_preferences", JSON.stringify(next)); } catch {}
+                          }}
+                          className="bg-black/50 border border-white/15 rounded-lg px-3 py-2 text-xs text-white"
+                        >
+                          <option value="Window">Window Seat</option>
+                          <option value="Aisle">Aisle Seat</option>
+                          <option value="Extra Legroom">Extra Legroom</option>
+                          <option value="First / Suite">First / Private Suite</option>
+                        </select>
+                        <select
+                          value={flightPrefs.planeArea}
+                          onChange={(e) => {
+                            const next = { ...flightPrefs, planeArea: e.target.value as FlightPrefs["planeArea"] };
+                            setFlightPrefs(next);
+                            try { localStorage.setItem("vanir_flight_preferences", JSON.stringify(next)); } catch {}
+                          }}
+                          className="bg-black/50 border border-white/15 rounded-lg px-3 py-2 text-xs text-white"
+                        >
+                          <option value="Front Cabin">Front Cabin</option>
+                          <option value="Middle Cabin">Middle Cabin</option>
+                          <option value="Exit Row">Exit Row</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-[#0d0d1a] border border-[#2a2a3e] space-y-2">
+                    <div className="flex items-center gap-2.5">
+                      <img src="/icons/travel-3d/CabinBagBundle.webp" alt="" className="w-6 h-6 object-contain" />
+                      <p className="text-sm font-semibold text-white">Baggage Preferences</p>
+                    </div>
+                    <p className="text-xs text-gray-400">
+                      Current: <span className="text-[var(--theme-primary)]">{flightPrefs.baggage}</span>
+                    </p>
+                    {editingFlightPrefs && (
+                      <select
+                        value={flightPrefs.baggage}
+                        onChange={(e) => {
+                          const next = { ...flightPrefs, baggage: e.target.value as FlightPrefs["baggage"] };
+                          setFlightPrefs(next);
+                          try { localStorage.setItem("vanir_flight_preferences", JSON.stringify(next)); } catch {}
+                          toast.success("Flight preferences saved!");
+                        }}
+                        className="w-full bg-black/50 border border-white/15 rounded-lg px-3 py-2 text-xs text-white mt-2"
+                      >
+                        <option value="Carry-on only (8kg)">Carry-on only (8kg)</option>
+                        <option value="1 Checked Bag (23kg)">1 Checked Bag (23kg)</option>
+                        <option value="2 VIP Bags (32kg each)">2 VIP Bags (32kg each)</option>
+                      </select>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Privacy & Security Section */}
+            {activeSection === "privacy" && (
+              <div className="space-y-6">
+                <div className="bg-[var(--card)]/80 border border-[#2a2a3e] rounded-2xl p-6 space-y-4">
+                  <h3 className="text-lg font-semibold text-white">Privacy &amp; Security</h3>
+                  <div className="p-4 rounded-xl bg-[#0d0d1a] border border-[#2a2a3e]">
+                    <p className="text-xs text-gray-400 mb-2">Sign-in Details</p>
+                    <div className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white">
+                      {user.email}
+                    </div>
+                  </div>
+                  <div className="p-4 rounded-xl bg-[#0d0d1a] border border-[#2a2a3e] flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-white">Active Session</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {typeof navigator !== "undefined" ? navigator.platform || "Web Browser" : "Web Browser"} • Active Now
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleLogout}
+                      className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs rounded-xl"
+                    >
+                      Sign out
+                    </Button>
+                  </div>
+                  <div className="p-4 rounded-xl bg-[#0d0d1a] border border-[#2a2a3e]">
+                    <p className="text-sm font-semibold text-white mb-1">Committed to Privacy</p>
+                    <p className="text-xs text-gray-400">
+                      Learn how we protect your personal travel data in our{" "}
+                      <a href="/privacy-policy" className="text-[var(--theme-primary)] underline">
+                        Privacy Policy
+                      </a>.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

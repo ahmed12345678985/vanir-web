@@ -1,5 +1,6 @@
 import { useAuth } from "@/_core/hooks/useAuth";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { resolveUserAvatar } from "@/lib/pharaonicAvatars";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -449,9 +450,9 @@ function AdminLayoutContent({
                   return (
                     <div key={group.key}>
                       {group.label && !isCollapsed && (
-                        <p className="text-[10px] uppercase tracking-wider text-white/35 font-bold px-3 pt-4 pb-1">{group.label}</p>
+                        <p className="text-[9.5px] uppercase tracking-wider text-white/35 font-bold px-2.5 pt-3 pb-1">{group.label}</p>
                       )}
-                      {group.label && isCollapsed && <div className="h-2" />}
+                      {group.label && isCollapsed && <div className="h-1.5" />}
                       {items.map(item => {
                         const isActive = location === item.path;
                         return (
@@ -460,7 +461,7 @@ function AdminLayoutContent({
                               isActive={isActive}
                               onClick={() => setLocation(item.path)}
                               tooltip={item.label}
-                              className={`!h-13 py-2 px-2.5 gap-3.5 transition-all text-[12.5px] font-medium rounded-xl mb-1 ${
+                              className={`!h-9 py-1.5 px-2.5 gap-2.5 transition-all text-[11.5px] font-medium rounded-lg mb-0.5 ${
                                 isActive
                                   ? "bg-gradient-to-r from-[#C69749]/20 via-[#E5C17A]/10 to-transparent text-[#E5C17A] font-semibold border border-[#C69749]/40 shadow-sm"
                                   : "text-white/80 hover:text-white hover:bg-white/5"
@@ -469,7 +470,7 @@ function AdminLayoutContent({
                               <img
                                 src={item.icon3d}
                                 alt=""
-                                className="h-10 w-10 min-h-[40px] min-w-[40px] object-contain shrink-0 drop-shadow-[0_4px_10px_rgba(0,0,0,0.75)]"
+                                className="h-5 w-5 min-h-[20px] min-w-[20px] object-contain shrink-0"
                               />
                               <span className="truncate">{item.label}</span>
                             </SidebarMenuButton>
@@ -500,7 +501,12 @@ function AdminLayoutContent({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-white/5 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none">
-                  <Avatar className="h-9 w-9 border border-[#D4A853]/40 shrink-0">
+                  <Avatar className="h-9 w-9 border border-[#D4A853]/60 shrink-0">
+                    <AvatarImage
+                      src={resolveUserAvatar(user?.avatarUrl, user?.email || user?.name)}
+                      alt={user?.name || "Vanir Admin"}
+                      className="object-cover"
+                    />
                     <AvatarFallback className="text-xs font-bold bg-[#D4A853]/15 text-[#D4A853]">
                       {user?.name?.charAt(0).toUpperCase() || "A"}
                     </AvatarFallback>
@@ -553,16 +559,16 @@ function AdminLayoutContent({
 
       <SidebarInset className="bg-[#090d14] min-w-0 flex-1">
         {/* Modern Dark Luxury Top Header Bar */}
-        <header className="sticky top-0 z-30 h-16 bg-[#0d1117]/95 backdrop-blur border-b border-white/10 px-4 md:px-6 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
-            {isMobile && <SidebarTrigger className="h-9 w-9 rounded-lg bg-white/5 text-white" />}
-            <div className="flex items-center gap-3 min-w-0">
+        <header className="sticky top-0 z-30 h-14 bg-[#0d1117]/95 backdrop-blur border-b border-white/10 px-4 md:px-5 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5 min-w-0">
+            {isMobile && <SidebarTrigger className="h-8 w-8 rounded-lg bg-white/5 text-white" />}
+            <div className="flex items-center gap-2 min-w-0">
               {activeMenuItem ? (
-                <img src={activeMenuItem.icon3d} alt="" className="w-11 h-11 object-contain shrink-0" />
+                <img src={activeMenuItem.icon3d} alt="" className="w-6 h-6 object-contain shrink-0" />
               ) : (
-                <img src="/logo-vanir-v2.png" alt="VANIR" className="h-10 w-auto object-contain shrink-0" />
+                <img src="/logo-vanir-v2.png" alt="VANIR" className="h-7 w-auto object-contain shrink-0" />
               )}
-              <span className="font-bold text-white text-sm md:text-base truncate">
+              <span className="font-semibold text-white text-xs md:text-sm truncate">
                 {activeMenuItem?.label ?? "لوحة التحكم"}
               </span>
             </div>
@@ -611,7 +617,7 @@ function AdminLayoutContent({
             <button
               type="button"
               onClick={() => setLocation("/admin/messages")}
-              className="w-10 h-10 rounded-full bg-[#141923] hover:bg-white/10 border border-white/10 flex items-center justify-center relative text-white/80"
+              className="w-8 h-8 rounded-full bg-[#141923] hover:bg-white/10 border border-white/10 flex items-center justify-center relative text-white/80"
               aria-label="Notifications"
             >
               <Bell className="w-4 h-4" />
@@ -623,7 +629,7 @@ function AdminLayoutContent({
             <button
               type="button"
               onClick={() => setDrawerOpen((v) => !v)}
-              className="w-10 h-10 rounded-full bg-[#141923] hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/80"
+              className="w-8 h-8 rounded-full bg-[#141923] hover:bg-white/10 border border-white/10 flex items-center justify-center text-white/80"
               aria-label="Quick Workspace Drawer"
             >
               <LayoutGrid className="w-4 h-4" />
@@ -681,7 +687,7 @@ function AdminLayoutContent({
                     }}
                     className="flex items-center gap-2.5 p-2.5 rounded-xl bg-[#141923] hover:bg-white/10 border border-white/10 transition-colors text-left"
                   >
-                    <img src={app.icon} alt="" className="w-8 h-8 object-contain shrink-0" />
+                    <img src={app.icon} alt="" className="w-5 h-5 object-contain shrink-0" />
                     <span className="text-xs font-semibold text-white truncate">{app.label}</span>
                   </button>
                 ))}

@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { getAuth, updateProfile as firebaseUpdateProfile } from "firebase/auth";
 import { getFirebaseApp } from "./firebase-api";
-import { askGeminiConcierge, askVanirAIAssistant } from "./geminiAi";
+import { askGeminiConcierge, askVanirAIAssistant, findAndSaveTopicImage, generateLuxuryImageWithGemini, generateLuxuryVideoWithDeevid } from "./geminiAi";
 import {
   db,
   getFirestoreSetting,
@@ -20,7 +20,23 @@ import {
   getFirestoreSettingsByCategory,
   setManyFirestoreSettings,
   uploadBase64Media,
+  uploadToCloudinary,
 } from "./siteSettingsApi";
+import { injectGoogleAnalytics, isValidGaId } from "./googleAnalytics";
+
+const GA_SETTING_KEYS = new Set(["google_analytics_id", "googleAnalyticsId", "ga_measurement_id"]);
+
+async function syncGaIdEverywhere(rawValue: string): Promise<void> {
+  const cleaned = String(rawValue || "").trim().toUpperCase();
+  await Promise.all([
+    setFirestoreSetting("analytics", "google_analytics_id", cleaned),
+    setFirestoreSetting("seo", "googleAnalyticsId", cleaned),
+    setFirestoreSetting("connectors", "ga_measurement_id", cleaned),
+  ]);
+  if (cleaned && isValidGaId(cleaned)) {
+    injectGoogleAnalytics(cleaned);
+  }
+}
 
 function hashStrToNum(str: string): number {
   let h = 0;
@@ -118,10 +134,42 @@ export async function executeTrpcFirestoreFallback(
     throw new Error("No fileData provided for upload");
   }
 
-  // ─── 2. Site Settings ───────────────────────────────────────
+  // ─── 2. Site Settings & Legacy settings.* Router ────────────
+  if (procedure === "settings.getAll") {
+    const snap = await getDocs(collection(db, "siteSettings"));
+    const rows = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        key: String(data.settingKey || d.id),
+        value: String(data.settingValue ?? ""),
+        category: String(data.category || "general"),
+      };
+    });
+    return { handled: true, data: rows };
+  }
+
+  if (procedure === "settings.set") {
+    const key = String(input.key || "").trim();
+    const val = String(input.value ?? "");
+    const category = String(input.category || "analytics");
+    if (key) {
+      if (GA_SETTING_KEYS.has(key)) {
+        await syncGaIdEverywhere(val);
+      } else {
+        await setFirestoreSetting(category, key, val);
+      }
+    }
+    return { handled: true, data: { success: true } };
+  }
+
   if (procedure === "siteSettings.set") {
     if (input.category && input.key) {
-      await setFirestoreSetting(input.category, input.key, input.value ?? "");
+      if (GA_SETTING_KEYS.has(String(input.key))) {
+        await syncGaIdEverywhere(String(input.value ?? ""));
+      } else {
+        await setFirestoreSetting(input.category, input.key, input.value ?? "");
+      }
     }
     return { handled: true, data: { success: true } };
   }
@@ -129,6 +177,11 @@ export async function executeTrpcFirestoreFallback(
   if (procedure === "siteSettings.setMany") {
     const items = Array.isArray(input.items) ? input.items : Array.isArray(input) ? input : [];
     await setManyFirestoreSettings(items);
+    for (const item of items) {
+      if (item?.key && GA_SETTING_KEYS.has(String(item.key))) {
+        await syncGaIdEverywhere(String(item.value ?? ""));
+      }
+    }
     return { handled: true, data: { success: true } };
   }
 
@@ -675,6 +728,397 @@ export async function executeTrpcFirestoreFallback(
     return { handled: true, data: { reply } };
   }
 
+  async function generateLuxuryTravelImage(promptText: string, folder: string, usedUrls?: Set<string>): Promise<string> {
+    const fallbackCover = "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=1200&q=80";
+    // 1. Try native Google Gemini / Imagen image generation via /api/gemini
+    const geminiImg = await generateLuxuryImageWithGemini(promptText, folder);
+    if (geminiImg) {
+      usedUrls?.add(geminiImg);
+      return geminiImg;
+    }
+    // 2. Fallback to curated/Wikimedia watermark-free travel photography
+    return findAndSaveTopicImage(promptText, fallbackCover, usedUrls);
+  }
+
+  async function executeAdminActionPayload(act: any, usedUrls?: Set<string>) {
+    const tool = String(act?.tool || "system");
+    const action = String(act?.action || "");
+    const fallbackCover = "https://images.unsplash.com/photo-1539768942893-daf53e448371?w=1200&q=80";
+
+    if (action === "update_blog") {
+      const rows = await listCollection("blog_posts");
+      const match = String(act?.titleMatch || "").toLowerCase();
+      const target = rows.find((r) => String(r._docId || r.id) === String(act?.id || "")) ||
+        rows.find((r) => match && (String(r.title || "").toLowerCase().includes(match) || String(r.titleAr || "").toLowerCase().includes(match))) ||
+        rows[0];
+      if (!target) return null;
+      const patch: Record<string, any> = { updatedAt: Date.now() };
+      if (act?.title) patch.title = String(act.title);
+      if (act?.titleAr) patch.titleAr = String(act.titleAr);
+      if (act?.excerpt) patch.excerpt = String(act.excerpt);
+      if (act?.content) patch.content = String(act.content);
+      if (act?.status) patch.status = String(act.status);
+      if (act?.imagePrompt) {
+        const newImg = await generateLuxuryTravelImage(String(act.imagePrompt), "blog_covers");
+        patch.coverImage = newImg;
+        patch.imageUrl = newImg;
+      }
+      await updateInCollection("blog_posts", String(target._docId || target.id), patch);
+      return {
+        tool: "blog",
+        action: "update_blog",
+        status: "success" as const,
+        summary: `Updated blog post: "${patch.title || target.title}"`,
+        summaryAr: `تم تعديل المقال: "${patch.titleAr || target.titleAr || target.title}"`,
+        imageUrl: patch.coverImage as string | undefined,
+        link: "/admin/blog",
+      };
+    }
+
+    if (action === "delete_blog") {
+      const rows = await listCollection("blog_posts");
+      const match = String(act?.titleMatch || "").toLowerCase();
+      const target = rows.find((r) => String(r._docId || r.id) === String(act?.id || "")) ||
+        rows.find((r) => match && (String(r.title || "").toLowerCase().includes(match) || String(r.titleAr || "").toLowerCase().includes(match)));
+      if (!target) return null;
+      await deleteInCollection("blog_posts", String(target._docId || target.id));
+      return {
+        tool: "blog",
+        action: "delete_blog",
+        status: "success" as const,
+        summary: `Deleted blog post: "${target.title}"`,
+        summaryAr: `تم حذف المقال: "${target.titleAr || target.title}"`,
+        link: "/admin/blog",
+      };
+    }
+
+    if (action === "publish_blog" || (tool === "blog" && action !== "list")) {
+      const title = String(act?.title || "Luxury Egypt Travel Guide").trim();
+      const titleAr = String(act?.titleAr || title).trim();
+      const slugBase = String(act?.slug || title)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "") || `post-${Date.now()}`;
+      const finalSlug = `${slugBase}-${Date.now().toString().slice(-4)}`;
+      const coverImage = await generateLuxuryTravelImage(
+        String(act?.imagePrompt || act?.imageQuery || title),
+        "blog_covers",
+        usedUrls
+      );
+      await createInCollection("blog_posts", {
+        title,
+        titleAr,
+        slug: finalSlug,
+        excerpt: String(act?.excerpt || title).trim(),
+        content: String(act?.content || act?.excerpt || title).trim(),
+        category: String(act?.category || "Egypt Luxury"),
+        coverImage,
+        imageUrl: coverImage,
+        author: "Vanir AI Editor",
+        status: "published",
+        publishedAt: Date.now(),
+        createdAt: Date.now(),
+      });
+      return {
+        tool: "blog",
+        action: "publish_blog",
+        status: "success" as const,
+        summary: `Published blog post: "${title}"`,
+        summaryAr: `تم نشر المقال بنجاح: "${titleAr}" — [قراءة المقال](/blog/${finalSlug}) | [إدارة المدونة](/admin/blog)`,
+        imageUrl: coverImage,
+        link: "/admin/blog",
+      };
+    }
+
+    if (action === "update_destination") {
+      const rows = await listCollection("destinations");
+      const match = String(act?.nameMatch || "").toLowerCase();
+      const target = rows.find((r) => String(r._docId || r.id) === String(act?.id || "")) ||
+        rows.find((r) => match && (String(r.name || "").toLowerCase().includes(match) || String(r.nameAr || "").toLowerCase().includes(match))) ||
+        rows[0];
+      if (!target) return null;
+      const patch: Record<string, any> = { updatedAt: Date.now() };
+      if (act?.name) patch.name = String(act.name);
+      if (act?.nameAr) patch.nameAr = String(act.nameAr);
+      if (act?.price) patch.price = String(act.price);
+      if (act?.description) patch.description = String(act.description);
+      if (act?.status) patch.status = String(act.status);
+      await updateInCollection("destinations", String(target._docId || target.id), patch);
+      return {
+        tool: "destinations",
+        action: "update_destination",
+        status: "success" as const,
+        summary: `Updated destination: "${patch.name || target.name}"`,
+        summaryAr: `تم تحديث الوجهة: "${patch.nameAr || target.nameAr || target.name}"`,
+        link: "/admin/destinations",
+      };
+    }
+
+    if (action === "create_destination" || tool === "destinations") {
+      const name = String(act?.name || act?.title || "Luxor VIP Experience").trim();
+      const nameAr = String(act?.nameAr || name).trim();
+      const imageUrl = await findAndSaveTopicImage(String(act?.imageQuery || name), fallbackCover);
+      await createInCollection("destinations", {
+        name,
+        nameAr,
+        country: String(act?.country || "Egypt"),
+        description: String(act?.description || `Curated luxury journey to ${name}.`),
+        price: String(act?.price || "$2,500"),
+        duration: String(act?.duration || "5 Days"),
+        imageUrl,
+        status: "active",
+        featured: true,
+        createdAt: Date.now(),
+      });
+      return {
+        tool: "destinations",
+        action: "create_destination",
+        status: "success" as const,
+        summary: `Created destination: "${name}"`,
+        summaryAr: `تمت إضافة الوجهة السياحية: "${nameAr}"`,
+        link: "/admin/destinations",
+      };
+    }
+
+    if (action === "generate_video") {
+      const title = String(act?.title || "Vanir AI Luxury Travel Video").trim();
+      const videoPrompt = String(act?.videoPrompt || act?.prompt || title).trim();
+      const dv = await generateLuxuryVideoWithDeevid(videoPrompt, String(act?.model || "Master V4.0"));
+      if (dv.error || !dv.taskId) {
+        throw new Error(dv.error || "Failed to submit Deevid video task");
+      }
+      if (dv.resultVideoUrl) {
+        await createInCollection("gallery_videos", {
+          title,
+          category: String(act?.category || "AI Video"),
+          videoUrl: dv.resultVideoUrl,
+          thumbnailUrl: dv.coverImageUrl || "",
+          isVisible: true,
+          aiGenerated: true,
+          createdAt: Date.now(),
+        });
+        return {
+          tool: "gallery",
+          action: "generate_video",
+          status: "success" as const,
+          summary: `AI video generated & published: "${title}"`,
+          summaryAr: `تم توليد الفيديو ونشره في المعرض: "${title}" — [مشاهدة الفيديو](${dv.resultVideoUrl})`,
+          imageUrl: dv.coverImageUrl,
+          link: "/admin/gallery",
+        };
+      }
+      return {
+        tool: "gallery",
+        action: "generate_video",
+        status: "success" as const,
+        summary: `Video generation started (Task #${dv.taskId}, status: ${dv.status})`,
+        summaryAr: `تم إرسال طلب توليد الفيديو عبر Deevid AI (رقم المهمة: ${dv.taskId} — الحالة: ${dv.status})`,
+        link: "/admin/gallery",
+      };
+    }
+
+    if (action === "generate_image") {
+      const title = String(act?.title || "Vanir AI Luxury Artwork").trim();
+      const imgPrompt = String(act?.imageQuery || act?.imagePrompt || title).trim();
+      const finalUrl = await generateLuxuryTravelImage(imgPrompt, "ai_gallery", usedUrls);
+      await createInCollection("gallery_images", {
+        title,
+        category: String(act?.category || "Luxury Travel"),
+        imageUrl: finalUrl,
+        isVisible: true,
+        aiGenerated: true,
+        prompt: imgPrompt,
+        createdAt: Date.now(),
+      });
+      return {
+        tool: "gallery",
+        action: "generate_image",
+        status: "success" as const,
+        summary: `Generated luxury AI image: "${title}"`,
+        summaryAr: `تم توليد الصورة السياحية الفاخرة ونشرها في المعرض: "${title}"`,
+        imageUrl: finalUrl,
+        link: "/admin/gallery",
+      };
+    }
+
+    if (action === "publish_gallery_image" || tool === "gallery") {
+      const title = String(act?.title || "Vanir Luxury Moment").trim();
+      const directUrl = String(act?.imageUrl || "").trim();
+      const imageUrl = directUrl.startsWith("http")
+        ? directUrl
+        : await findAndSaveTopicImage(String(act?.imageQuery || title), fallbackCover);
+      await createInCollection("gallery_images", {
+        title,
+        category: String(act?.category || "Destinations"),
+        imageUrl,
+        isVisible: true,
+        createdAt: Date.now(),
+      });
+      return {
+        tool: "gallery",
+        action: "publish_gallery_image",
+        status: "success" as const,
+        summary: `Published gallery image: "${title}"`,
+        summaryAr: `تم نشر الصورة في المعرض: "${title}"`,
+        link: "/admin/gallery",
+      };
+    }
+
+    if (action === "update_offer") {
+      const rows = await listCollection("offers");
+      const match = String(act?.titleMatch || "").toLowerCase();
+      const target = rows.find((r) => String(r._docId || r.id) === String(act?.id || "")) ||
+        rows.find((r) => match && (String(r.title || "").toLowerCase().includes(match) || String(r.titleAr || "").toLowerCase().includes(match))) ||
+        rows[0];
+      if (!target) return null;
+      const patch: Record<string, any> = { updatedAt: Date.now() };
+      if (act?.title) patch.title = String(act.title);
+      if (act?.discount) patch.discount = String(act.discount);
+      if (act?.price) patch.price = String(act.price);
+      if (act?.description) patch.description = String(act.description);
+      if (act?.status) patch.status = String(act.status);
+      await updateInCollection("offers", String(target._docId || target.id), patch);
+      return {
+        tool: "offers",
+        action: "update_offer",
+        status: "success" as const,
+        summary: `Updated VIP offer: "${patch.title || target.title}"`,
+        summaryAr: `تم تعديل العرض: "${target.titleAr || target.title}"`,
+        link: "/admin/offers",
+      };
+    }
+
+    if (action === "create_offer" || tool === "offers") {
+      const title = String(act?.title || "Exclusive VIP Nile Offer").trim();
+      const titleAr = String(act?.titleAr || title).trim();
+      const imageUrl = await findAndSaveTopicImage(String(act?.imageQuery || title), fallbackCover);
+      await createInCollection("offers", {
+        title,
+        titleAr,
+        description: String(act?.description || `Exclusive luxury travel offer: ${title}`),
+        discount: String(act?.discount || "20% OFF"),
+        price: String(act?.price || "$3,200"),
+        imageUrl,
+        status: "active",
+        createdAt: Date.now(),
+      });
+      return {
+        tool: "offers",
+        action: "create_offer",
+        status: "success" as const,
+        summary: `Created VIP offer: "${title}"`,
+        summaryAr: `تم إنشاء العرض السياحي: "${titleAr}"`,
+        link: "/admin/offers",
+      };
+    }
+
+    if (action === "approve_pending_reviews" || tool === "reviews") {
+      const rows = await listCollection("reviews");
+      const pending = rows.filter((r) => r.status !== "approved");
+      for (const r of pending) {
+        await updateInCollection("reviews", String(r._docId || r.id), { status: "approved" });
+      }
+      return {
+        tool: "reviews",
+        action: "approve_pending_reviews",
+        status: "success" as const,
+        summary: `Approved ${pending.length} pending review(s)`,
+        summaryAr: `تمت الموافقة على ${pending.length} تقييم معلق`,
+        link: "/admin/reviews",
+      };
+    }
+
+    if (action === "update_setting" || tool === "settings") {
+      const key = String(act?.key || "").trim();
+      if (key) {
+        if (GA_SETTING_KEYS.has(key)) {
+          await syncGaIdEverywhere(String(act?.value ?? ""));
+        } else {
+          await setFirestoreSetting(String(act?.category || "general"), key, String(act?.value ?? ""));
+        }
+        return {
+          tool: "settings",
+          action: "update_setting",
+          status: "success" as const,
+          summary: `Updated site setting: ${key}`,
+          summaryAr: `تم تحديث إعداد الموقع: ${key}`,
+          link: "/admin/settings",
+        };
+      }
+    }
+
+    if (action === "fix_site_issues" || tool === "system") {
+      let fixedCount = 0;
+      const posts = await listCollection("blog_posts");
+      for (const p of posts) {
+        if (!p.coverImage && !p.imageUrl) {
+          const img = await findAndSaveTopicImage(String(p.title || "Egypt luxury travel"), fallbackCover);
+          await updateInCollection("blog_posts", String(p._docId || p.id), { coverImage: img, imageUrl: img });
+          fixedCount++;
+        }
+      }
+      const dests = await listCollection("destinations");
+      for (const d of dests) {
+        if (!d.imageUrl) {
+          const img = await findAndSaveTopicImage(String(d.name || "Egypt destination"), fallbackCover);
+          await updateInCollection("destinations", String(d._docId || d.id), { imageUrl: img });
+          fixedCount++;
+        }
+      }
+      return {
+        tool: "system",
+        action: "fix_site_issues",
+        status: "success" as const,
+        summary: `Auto-repaired ${fixedCount} missing image/content record(s)`,
+        summaryAr: `تم فحص وإصلاح ${fixedCount} سجل/صورة ناقصة في الموقع`,
+        link: "/admin",
+      };
+    }
+
+    return null;
+  }
+
+  if (procedure === "aiCommand.getApiConfig") {
+    return {
+      handled: true,
+      data: {
+        maskedKey: "Cloudflare-Gemini-Proxy (Active)",
+        apiUrl: "/api/gemini",
+        model: "gemini-3.1-flash-lite",
+      },
+    };
+  }
+
+  if (procedure === "aiCommand.executeAdminAction") {
+    try {
+      const exec = await executeAdminActionPayload(input);
+      if (exec) {
+        return { handled: true, data: { success: true, ...exec } };
+      }
+      return {
+        handled: true,
+        data: {
+          success: false,
+          tool: String(input?.tool || "system"),
+          action: String(input?.action || "unknown"),
+          summary: "Unsupported admin action",
+          summaryAr: "إجراء غير مدعوم",
+        },
+      };
+    } catch (err: any) {
+      return {
+        handled: true,
+        data: {
+          success: false,
+          tool: String(input?.tool || "system"),
+          action: String(input?.action || "unknown"),
+          summary: err?.message || "Action failed",
+          summaryAr: "فشل تنفيذ الإجراء",
+        },
+      };
+    }
+  }
+
   if (procedure === "aiCommand.chat") {
     const msgs = Array.isArray(input?.messages) ? input.messages : [];
     const lastUser = msgs[msgs.length - 1];
@@ -683,11 +1127,79 @@ export async function executeTrpcFirestoreFallback(
       role: m.role === "assistant" ? "assistant" : "user",
       content: String(m.content || ""),
     }));
-    const response = await askVanirAIAssistant(prompt, input?.taskType, history);
+    const rawResponse = await askVanirAIAssistant(prompt, input?.taskType, history, {
+      provider: input?.provider,
+      model: input?.model,
+    });
+    let response = rawResponse;
+    let executedAction: any = undefined;
+
+    const actionMatches = Array.from(rawResponse.matchAll(/<ADMIN_ACTION>([\s\S]*?)<\/ADMIN_ACTION>/gi));
+    if (actionMatches.length > 0) {
+      response = rawResponse.replace(/<ADMIN_ACTION>[\s\S]*?<\/ADMIN_ACTION>/gi, "").trim();
+      const succeeded: any[] = [];
+      const failedErrors: string[] = [];
+      const usedImageUrls = new Set<string>();
+
+      for (const m of actionMatches) {
+        try {
+          let jsonText = m[1]
+            .replace(/^```(?:json)?\s*/i, "")
+            .replace(/\s*```$/i, "")
+            .trim();
+          const objMatch = jsonText.match(/\{[\s\S]*\}/);
+          if (objMatch) jsonText = objMatch[0];
+
+          let parsedAction: any;
+          try {
+            parsedAction = JSON.parse(jsonText);
+          } catch {
+            const sanitized = jsonText.replace(/\r?\n/g, "\\n").replace(/\t/g, "\\t");
+            parsedAction = JSON.parse(sanitized);
+          }
+          const execResult = await executeAdminActionPayload(parsedAction, usedImageUrls);
+          if (execResult) {
+            succeeded.push(execResult);
+            response += `\n\n✅ **${execResult.summaryAr || execResult.summary}**`;
+            if ((execResult as any).imageUrl) {
+              response += `\n![${execResult.summary}](${(execResult as any).imageUrl})`;
+            }
+          }
+        } catch (err: any) {
+          console.warn("[aiCommand.chat] Failed to execute <ADMIN_ACTION>:", err);
+          failedErrors.push(err?.message || "Execution error");
+        }
+      }
+
+      if (succeeded.length > 0) {
+        const last = succeeded[succeeded.length - 1];
+        executedAction =
+          succeeded.length === 1
+            ? last
+            : {
+                tool: last.tool,
+                action: last.action,
+                status: "success" as const,
+                summary: `Executed ${succeeded.length} actions successfully`,
+                summaryAr: `تم تنفيذ ${succeeded.length} إجراءات ونشرها في الموقع بنجاح`,
+                link: last.link,
+              };
+      } else if (failedErrors.length > 0) {
+        executedAction = {
+          tool: "system",
+          action: "parse_error",
+          status: "failed",
+          summary: failedErrors[0],
+          summaryAr: "تعذر تنفيذ الإجراء تلقائياً",
+        };
+      }
+    }
+
     return {
       handled: true,
       data: {
         response,
+        executedAction,
         usage: { total_tokens: Math.ceil((prompt.length + response.length) / 4) },
       },
     };

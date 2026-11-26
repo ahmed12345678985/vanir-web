@@ -3,23 +3,14 @@
  * Home Page: Assembles all sections with advanced scroll transition effects
  * Color palette: Black (#0d1117), Gold (#D4A853), Light Gold (#F5E6B8)
  */
-import { useAuth } from "@/_core/hooks/useAuth";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
+import FlightBookingBar from "@/components/FlightBookingBar";
 
 import AboutSection from "@/components/AboutSection";
 import ActivitiesSection from "@/components/ActivitiesSection";
 
-import PopularPlaces from "@/components/PopularPlaces";
-import DestinationsSection from "@/components/DestinationsSection";
-import GallerySection from "@/components/GallerySection";
-import StatsSection from "@/components/StatsSection";
-import TestimonialsSection from "@/components/TestimonialsSection";
-import BlogSection from "@/components/BlogSection";
-import MobileAppSection from "@/components/MobileAppSection";
-import SovereignJourneyArchitect from "@/components/SovereignJourneyArchitect";
-import Footer from "@/components/Footer";
-import BackToTop from "@/components/BackToTop";
 import SEO from "@/components/SEO";
 import PageMeta from "@/components/PageMeta";
 import {
@@ -27,21 +18,61 @@ import {
   ScrollProgressIndicator,
 } from "@/components/ScrollEffects";
 
+const PopularPlaces = lazy(() => import("@/components/PopularPlaces"));
+const DestinationsSection = lazy(() => import("@/components/DestinationsSection"));
+const GallerySection = lazy(() => import("@/components/GallerySection"));
+const StatsSection = lazy(() => import("@/components/StatsSection"));
+const TestimonialsSection = lazy(() => import("@/components/TestimonialsSection"));
+const BlogSection = lazy(() => import("@/components/BlogSection"));
+const MobileAppSection = lazy(() => import("@/components/MobileAppSection"));
+const ElfsightStoreLocatorWidget = lazy(() => import("@/components/ElfsightStoreLocatorWidget"));
+const Footer = lazy(() => import("@/components/Footer"));
+const BackToTop = lazy(() => import("@/components/BackToTop"));
+
 export default function Home() {
-  const { user, isAuthenticated } = useAuth();
+  const [showBelowFold, setShowBelowFold] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const activate = () => setShowBelowFold(true);
+    window.addEventListener("scroll", activate, { once: true, passive: true });
+    window.addEventListener("pointerdown", activate, { once: true, passive: true });
+
+    let observer: IntersectionObserver | null = null;
+    if ("IntersectionObserver" in window && sentinelRef.current) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((e) => e.isIntersecting)) {
+            activate();
+            observer?.disconnect();
+          }
+        },
+        { rootMargin: "500px" }
+      );
+      observer.observe(sentinelRef.current);
+    }
+
+    const fallbackTimer = setTimeout(activate, 6500);
+    return () => {
+      clearTimeout(fallbackTimer);
+      observer?.disconnect();
+      window.removeEventListener("scroll", activate);
+      window.removeEventListener("pointerdown", activate);
+    };
+  }, []);
 
   return (
     <div className="relative min-h-screen bg-[var(--theme-surface)]">
       <PageMeta
-        title="Vanir Group | Ultra-Luxury Travel Concierge Service & Private Jet Charter"
-        description="World-class luxury travel concierge service, private jet charter (Privatjet mieten), luxury Egypt tours, and bespoke global itineraries curated by Vanir Group."
-        keywords="luxury travel concierge service, luxury Egypt tours, private jet charter, Privatjet mieten, Flugzeug chartern, VANIR GROUP, Vanir Travel Group, Nile cruise, pyramids tour"
+        title="Vanir Group Luxury Travel - Luxury Egypt Tours, Nile Cruise Luxury & Pyramids of Egypt Tours"
+        description="Vanir Group Luxury Travel curates bespoke luxury Egypt tours, Nile cruise luxury aboard private Dahabiyas, after-hours pyramids of Egypt tours, and private jet charters worldwide."
+        keywords="luxury egypt tours, nile cruise luxury, pyramids of egypt tours, vanir group luxury travel, Vanir, Vanir Group, luxury travel concierge service, private jet charter, Privatjet mieten, Flugzeug chartern"
         canonicalPath="/"
       />
       <SEO
-        title="Vanir Group | Ultra-Luxury Travel Concierge Service & Private Jet Charter"
-        description="World-class luxury travel concierge service, private jet charter (Privatjet mieten), luxury Egypt tours, and bespoke global itineraries curated by Vanir Group."
-        keywords="luxury travel concierge service, luxury Egypt tours, private jet charter, Privatjet mieten, Flugzeug chartern, VANIR GROUP, Egypt tours"
+        title="Vanir Group Luxury Travel - Luxury Egypt Tours, Nile Cruise Luxury & Pyramids of Egypt Tours"
+        description="Vanir Group Luxury Travel curates bespoke luxury Egypt tours, Nile cruise luxury aboard private Dahabiyas, after-hours pyramids of Egypt tours, and private jet charters worldwide."
+        keywords="luxury egypt tours, nile cruise luxury, pyramids of egypt tours, vanir group luxury travel, Vanir, Vanir Group, luxury travel concierge service, private jet charter"
       />
 
       {/* Scroll Progress Bar */}
@@ -49,9 +80,7 @@ export default function Home() {
 
       <Navbar />
       <HeroSection />
-
-      {/* Signature Interactive Tool: The Vanir Sovereign Journey & Private Jet Architect */}
-      <SovereignJourneyArchitect />
+      <FlightBookingBar />
 
       {/* About Section */}
       <AboutSection />
@@ -63,41 +92,62 @@ export default function Home() {
 
       <AnimatedDivider style="gold-line" />
 
-      {/* Popular Places */}
-      <PopularPlaces />
+      <div ref={sentinelRef} />
 
-      <AnimatedDivider style="wave" />
+      {showBelowFold && (
+      <Suspense fallback={null}>
+        {/* Popular Places */}
+        <PopularPlaces />
 
-      {/* Destinations Section */}
-      <DestinationsSection />
+        <AnimatedDivider style="wave" />
 
-      <AnimatedDivider style="gold-line" />
+        {/* Destinations Section */}
+        <DestinationsSection />
 
-      {/* Gallery Section */}
-      <GallerySection />
+        <AnimatedDivider style="gold-line" />
 
-      <AnimatedDivider style="wave" />
+        {/* Gallery Section */}
+        <GallerySection />
 
-      {/* Stats Section */}
-      <StatsSection />
+        <AnimatedDivider style="wave" />
 
-      <AnimatedDivider style="diamond" />
+        {/* Stats Section */}
+        <StatsSection />
 
-      {/* Testimonials Section */}
-      <TestimonialsSection />
+        <AnimatedDivider style="diamond" />
 
-      <AnimatedDivider style="fade" />
+        {/* Testimonials Section */}
+        <TestimonialsSection />
 
-      {/* Blog Section */}
-      <BlogSection />
+        <AnimatedDivider style="fade" />
 
-      <AnimatedDivider style="gold-line" />
+        {/* Blog Section */}
+        <BlogSection />
 
-      {/* Official Mobile App Download Showcase */}
-      <MobileAppSection />
+        <AnimatedDivider style="gold-line" />
 
-      <Footer />
-      <BackToTop />
+        {/* Official Mobile App Download Showcase */}
+        <MobileAppSection />
+
+        {/* Interactive Store & Concierge Locator Map (Home Page) */}
+        <section className="py-14 bg-[var(--theme-surface)] border-t border-white/5">
+          <div className="w-full max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-8">
+              <span className="font-[var(--font-script)] text-[var(--theme-primary)] text-2xl block mb-2">
+                Find Us Worldwide
+              </span>
+              <h2 className="font-[var(--font-display)] text-2xl sm:text-3xl md:text-4xl font-bold text-white">
+                Vanir Group <span className="text-[#D4A853]">Locations &amp; Concierge</span>
+              </h2>
+            </div>
+            <ElfsightStoreLocatorWidget />
+          </div>
+        </section>
+
+        <Footer />
+        <BackToTop />
+      </Suspense>
+      )}
     </div>
   );
 }

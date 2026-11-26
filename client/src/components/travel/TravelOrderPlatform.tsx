@@ -4,6 +4,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { ASSETS } from "@/config/assets";
 import { searchLiveFlights, searchLiveHotels, type LiveFlightOffer } from "@/lib/liveTravelApi";
 import { OrderDetailView } from "./OrderDetailView";
+import { StrictPaymentCheckout } from "./StrictPaymentCheckout";
+import { resolveUserAvatar } from "@/lib/pharaonicAvatars";
 import { toast } from "sonner";
 import {
   Plane,
@@ -60,8 +62,102 @@ import {
 } from "lucide-react";
 
 export type PlatformMode = "client" | "admin";
-type ServiceTab = "flights" | "hotels" | "design" | "holiday" | "transfers" | "activities" | "offers";
+type ServiceTab = "flights" | "hotels" | "design" | "holiday" | "transfers" | "activities" | "vip_services" | "offers";
 type ClientStep = "search" | "details" | "checkout" | "confirmed";
+
+interface VipExtraService {
+  id: string;
+  title: string;
+  category: string;
+  badge: string;
+  price: number;
+  unit: string;
+  description: string;
+  image: string;
+}
+
+const VIP_EXTRA_SERVICES: VipExtraService[] = [
+  {
+    id: "vip_fast_track",
+    title: "VIP Airport Fast Track & Private Lounge",
+    category: "Airport VIP",
+    badge: "Most Popular",
+    price: 180,
+    unit: "per booking",
+    description: "Meet & Greet at aircraft gate, private VIP lounge access, and expedited passport & customs clearance.",
+    image: "/images/vip-generated/vip_fast_track.jpg",
+  },
+  {
+    id: "vip_private_jet",
+    title: "Private Jet / Helicopter Transfer Upgrade",
+    category: "Aviation",
+    badge: "Ultra-VIP",
+    price: 2400,
+    unit: "per flight",
+    description: "Seamless private charter or helicopter transfer directly from airport tarmac to resort helipad.",
+    image: "/images/vip-generated/vip_private_jet.jpg",
+  },
+  {
+    id: "vip_maybach_chauffeur",
+    title: "Full-Day Mercedes-Maybach Chauffeur",
+    category: "Chauffeur",
+    badge: "Executive",
+    price: 320,
+    unit: "per day",
+    description: "Dedicated multilingual chauffeur with flagship Maybach S-Class on standby throughout your stay.",
+    image: "/images/vip-generated/vip_maybach_chauffeur.jpg",
+  },
+  {
+    id: "vip_royal_suite_setup",
+    title: "Royal Suite Setup & Late Check-out (6 PM)",
+    category: "In-Stay Luxury",
+    badge: "Guest Favorite",
+    price: 150,
+    unit: "per stay",
+    description: "Guaranteed early check-in / 6 PM late check-out, floral suite styling, and artisanal welcome hospitality.",
+    image: "/images/vip-generated/vip_royal_suite_setup.jpg",
+  },
+  {
+    id: "vip_private_yacht",
+    title: "Private Sunset Yacht & Chef Experience",
+    category: "Yachting",
+    badge: "Signature",
+    price: 850,
+    unit: "per charter",
+    description: "Half-day private luxury yacht voyage with onboard chef, chilled refreshments, and coastal itinerary.",
+    image: "/images/vip-generated/vip_private_yacht.jpg",
+  },
+  {
+    id: "vip_private_guide",
+    title: "Personal Butler & Private Egyptologist",
+    category: "Concierge",
+    badge: "Bespoke",
+    price: 250,
+    unit: "per day",
+    description: "Dedicated personal concierge or private historian guide with priority access to heritage landmarks.",
+    image: "/images/vip-generated/vip_private_guide.jpg",
+  },
+  {
+    id: "vip_esim_insurance",
+    title: "Global 5G eSIM & VIP Travel Insurance",
+    category: "Travel Essentials",
+    badge: "Instant Setup",
+    price: 95,
+    unit: "per traveler",
+    description: "Unlimited high-speed global 5G eSIM activated before landing plus comprehensive cancellation coverage.",
+    image: "/images/vip-generated/vip_esim_insurance.jpg",
+  },
+  {
+    id: "vip_diplomatic_visa",
+    title: "Diplomatic Visa & Fast-Track Protocol",
+    category: "Diplomatic",
+    badge: "24/7 Desk",
+    price: 160,
+    unit: "per traveler",
+    description: "End-to-end visa processing, official invitation letters, and embassy protocol coordination.",
+    image: "/images/vip-generated/vip_diplomatic_visa.jpg",
+  },
+];
 type AdminSection = "create" | "orders" | "activities" | "suppliers" | "tickets";
 type DetailsTab = "overview" | "rooms" | "amenities" | "reviews";
 type SortBy = "popular" | "rating_desc" | "price_desc" | "price_asc";
@@ -518,8 +614,19 @@ const DEFAULT_TRANSFERS: TransferOption[] = [
     luggage: 3,
     airportRate: 180,
     hourlyRate: 95,
-    city: "Cairo / Dubai",
-    image: "/images/hotels-real/caimn-lobby-8343-hor-clsc.webp",
+    city: "Cairo / Dubai / Paris / London",
+    image: "/images/vip-generated/car_maybach_s680.jpg",
+  },
+  {
+    id: "tr_suv",
+    name: "Royal SUV (Rolls-Royce Cullinan VIP)",
+    category: "Flagship VIP SUV",
+    passengers: 4,
+    luggage: 4,
+    airportRate: 260,
+    hourlyRate: 140,
+    city: "Dubai / London / Geneva / Cairo",
+    image: "/images/vip-generated/car_vip_suv.jpg",
   },
   {
     id: "tr_sedan",
@@ -529,8 +636,8 @@ const DEFAULT_TRANSFERS: TransferOption[] = [
     luggage: 3,
     airportRate: 95,
     hourlyRate: 55,
-    city: "Cairo / Dubai",
-    image: "/images/hotels-real/caimn-view-0063-hor-clsc.webp",
+    city: "Cairo / Dubai / Rome / Istanbul",
+    image: "/images/vip-generated/car_mercedes_eclass.jpg",
   },
   {
     id: "tr_minivan",
@@ -540,8 +647,8 @@ const DEFAULT_TRANSFERS: TransferOption[] = [
     luggage: 6,
     airportRate: 135,
     hourlyRate: 75,
-    city: "Cairo / Dubai / Maldives",
-    image: "/images/hotels-real/luxury_hotel_suite.jpg",
+    city: "Cairo / Dubai / Maldives / Zurich",
+    image: "/images/vip-generated/car_mercedes_vclass.jpg",
   },
 ];
 
@@ -587,12 +694,66 @@ const DEFAULT_ACTIVITIES: ActivityItem[] = [
   },
 ];
 
+function getAirlineCode(flt: { airlineCode?: string; flightNumber?: string; airline?: string }): string {
+  if (flt.airlineCode && flt.airlineCode.length === 2) return flt.airlineCode.toUpperCase();
+  const fnMatch = String(flt.flightNumber || "").trim().match(/^([A-Z0-9]{2})\b/i);
+  if (fnMatch) return fnMatch[1].toUpperCase();
+  const name = String(flt.airline || "").toLowerCase();
+  if (name.includes("emirates")) return "EK";
+  if (name.includes("qatar")) return "QR";
+  if (name.includes("air france")) return "AF";
+  if (name.includes("british")) return "BA";
+  if (name.includes("swiss")) return "LX";
+  if (name.includes("egyptair") || name.includes("egypt air")) return "MS";
+  if (name.includes("etihad")) return "EY";
+  if (name.includes("lufthansa")) return "LH";
+  if (name.includes("turkish")) return "TK";
+  if (name.includes("saudia")) return "SV";
+  return "EK";
+}
+
+function AirlineLogoBadge({ flt, size = "md" }: { flt: { airlineCode?: string; airlineLogo?: string; flightNumber?: string; airline?: string }; size?: "sm" | "md" }) {
+  const code = getAirlineCode(flt);
+  const logoUrl = flt.airlineLogo || `https://pics.avs.io/140/56/${code}.png`;
+  return (
+    <div
+      className={`bg-white flex items-center justify-center shrink-0 shadow-xs border border-white/20 overflow-hidden ${
+        size === "sm" ? "h-6 w-14 px-1.5 rounded-md" : "h-8 w-16 px-2 rounded-lg"
+      }`}
+      title={flt.airline || code}
+    >
+      <img
+        src={logoUrl}
+        alt={flt.airline || code}
+        className="max-h-full max-w-full object-contain"
+        onError={(e) => {
+          const el = e.currentTarget as HTMLImageElement;
+          const fallbackUrl = `https://pics.avs.io/140/56/${code}.png`;
+          if (el.src !== fallbackUrl && !el.dataset.triedFallback) {
+            el.dataset.triedFallback = "1";
+            el.src = fallbackUrl;
+            return;
+          }
+          el.style.display = "none";
+          const parent = el.parentElement;
+          if (parent && !parent.querySelector("span")) {
+            const span = document.createElement("span");
+            span.className = "text-[10px] font-extrabold text-slate-900 tracking-wider";
+            span.textContent = code;
+            parent.appendChild(span);
+          }
+        }}
+      />
+    </div>
+  );
+}
+
 const DEFAULT_FLIGHTS: LiveFlightOffer[] = [
   {
     id: "flt_ek_924",
     provider: "duffel",
     liveBookable: false,
-    airline: "Emirates",
+    airline: "Emirates · First & Business",
     airlineCode: "EK",
     flightNumber: "EK 924",
     origin: "CAI",
@@ -606,20 +767,88 @@ const DEFAULT_FLIGHTS: LiveFlightOffer[] = [
     currency: "USD",
   },
   {
-    id: "flt_ek_925",
+    id: "flt_qr_1304",
     provider: "duffel",
     liveBookable: false,
-    airline: "Emirates",
-    airlineCode: "EK",
-    flightNumber: "EK 925",
-    origin: "DXB",
-    destination: "CAI",
-    departureTime: "15:10",
-    arrivalTime: "18:05",
-    duration: "3h 55m",
+    airline: "Qatar Airways · Qsuite",
+    airlineCode: "QR",
+    flightNumber: "QR 1304",
+    origin: "CAI",
+    destination: "MLE",
+    departureTime: "13:10",
+    arrivalTime: "01:45",
+    duration: "8h 35m",
+    stops: 1,
+    cabin: "Qsuite Business",
+    price: 1290,
+    currency: "USD",
+  },
+  {
+    id: "flt_af_567",
+    provider: "duffel",
+    liveBookable: false,
+    airline: "Air France · La Première",
+    airlineCode: "AF",
+    flightNumber: "AF 567",
+    origin: "CAI",
+    destination: "CDG",
+    departureTime: "08:45",
+    arrivalTime: "13:50",
+    duration: "5h 05m",
     stops: 0,
     cabin: "Business Class",
-    price: 640,
+    price: 980,
+    currency: "USD",
+  },
+  {
+    id: "flt_ba_154",
+    provider: "duffel",
+    liveBookable: false,
+    airline: "British Airways · Club World",
+    airlineCode: "BA",
+    flightNumber: "BA 154",
+    origin: "CAI",
+    destination: "LHR",
+    departureTime: "09:15",
+    arrivalTime: "13:40",
+    duration: "5h 25m",
+    stops: 0,
+    cabin: "Club World",
+    price: 940,
+    currency: "USD",
+  },
+  {
+    id: "flt_lx_239",
+    provider: "duffel",
+    liveBookable: false,
+    airline: "SWISS · Alpine Business",
+    airlineCode: "LX",
+    flightNumber: "LX 239",
+    origin: "CAI",
+    destination: "GVA",
+    departureTime: "03:45",
+    arrivalTime: "08:15",
+    duration: "4h 30m",
+    stops: 0,
+    cabin: "Business Class",
+    price: 890,
+    currency: "USD",
+  },
+  {
+    id: "flt_ms_910",
+    provider: "duffel",
+    liveBookable: false,
+    airline: "EgyptAir · Royal Business",
+    airlineCode: "MS",
+    flightNumber: "MS 910",
+    origin: "CAI",
+    destination: "DXB",
+    departureTime: "15:10",
+    arrivalTime: "19:55",
+    duration: "3h 45m",
+    stops: 0,
+    cabin: "Business Class",
+    price: 590,
     currency: "USD",
   },
 ];
@@ -662,10 +891,12 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
   const [selectedActivity, setSelectedActivity] = useState<ActivityItem | null>(DEFAULT_ACTIVITIES[0]);
   const [selectedFlight, setSelectedFlight] = useState<LiveFlightOffer>(DEFAULT_FLIGHTS[0]);
   const [liveFlights, setLiveFlights] = useState<LiveFlightOffer[]>(DEFAULT_FLIGHTS);
+  const [liveHotels, setLiveHotels] = useState<HotelCatalogItem[]>([]);
   const [searchingLive, setSearchingLive] = useState(false);
 
   // Checkout Add-ons & Passenger Details
   const [selectedTransferId, setSelectedTransferId] = useState<string>("tr_limo");
+  const [selectedVipServices, setSelectedVipServices] = useState<string[]>([]);
   const [extraBagsOutbound, setExtraBagsOutbound] = useState(1);
   const [extraBagsReturn, setExtraBagsReturn] = useState(0);
   const [selectedSeatOutbound, setSelectedSeatOutbound] = useState("12A");
@@ -751,9 +982,15 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
     },
   });
 
-  // Merge Real Hotels from Admin Inventory (`admin_hotels_inventory`) + Destinations
+  // Merge Live Google Hotels + Admin Inventory (`admin_hotels_inventory`) + Default Hotels
   const hotelsCatalog = useMemo<HotelCatalogItem[]>(() => {
-    const list: HotelCatalogItem[] = [...DEFAULT_HOTELS];
+    const list: HotelCatalogItem[] = [...liveHotels];
+    const addUnique = (h: HotelCatalogItem) => {
+      if (!list.some((x) => x.id === h.id || x.name.toLowerCase() === h.name.toLowerCase())) {
+        list.push(h);
+      }
+    };
+    DEFAULT_HOTELS.forEach(addUnique);
     if (Array.isArray(settingsData)) {
       const inv = settingsData.find((s: any) => s.key === "admin_hotels_inventory");
       if (inv?.value) {
@@ -762,7 +999,7 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
           if (Array.isArray(parsed)) {
             parsed.forEach((h: any) => {
               if (!h?.name || list.some((x) => x.id === h.id || x.name === h.name)) return;
-              list.unshift({
+              list.push({
                 id: h.id || `htl_${h.name}`,
                 name: h.name,
                 city: h.city || "Cairo",
@@ -801,16 +1038,31 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
       }
     }
     return list;
-  }, [settingsData]);
+  }, [settingsData, liveHotels]);
 
   // Merge Real Transfers from `admin_transfers_fleet`
   const transfersCatalog = useMemo<TransferOption[]>(() => {
+    const carFallbackPool = [
+      "/images/vip-generated/car_maybach_s680.jpg",
+      "/images/vip-generated/car_vip_suv.jpg",
+      "/images/vip-generated/car_mercedes_eclass.jpg",
+      "/images/vip-generated/car_mercedes_vclass.jpg",
+    ];
     if (Array.isArray(settingsData)) {
       const fleet = settingsData.find((s: any) => s.key === "admin_transfers_fleet");
       if (fleet?.value) {
         try {
           const parsed = typeof fleet.value === "string" ? JSON.parse(fleet.value) : fleet.value;
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return parsed.map((car: any, idx: number) => {
+              const img = String(car.image || "");
+              const needsRealCarImg = !img || img.includes("hotels-real");
+              return {
+                ...car,
+                image: needsRealCarImg ? carFallbackPool[idx % carFallbackPool.length] : img,
+              };
+            });
+          }
         } catch {
           // ignore
         }
@@ -898,26 +1150,128 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
     sortBy,
   ]);
 
-  // Live API Search Trigger
-  const handleSearchLive = async () => {
+  // Live API Search Trigger (Google Hotels + Google Flights / Duffel / Amadeus)
+  const handleSearchLive = async (silent = false, overrideCity?: string) => {
     setSearchingLive(true);
     try {
-      const targetCity = cityQuery.trim() || "Dubai";
+      const targetCity = (overrideCity !== undefined ? overrideCity : cityQuery).trim() || "Dubai";
+      const cityLower = targetCity.toLowerCase();
+      const CITY_TO_IATA: Record<string, string> = {
+        dubai: "DXB",
+        "abu dhabi": "AUH",
+        cairo: "CAI",
+        luxor: "LXR",
+        aswan: "ASW",
+        paris: "CDG",
+        london: "LHR",
+        maldives: "MLE",
+        male: "MLE",
+        rome: "FCO",
+        geneva: "GVA",
+        zurich: "ZRH",
+        tokyo: "HND",
+        "new york": "JFK",
+        hawaii: "HNL",
+        bali: "DPS",
+        santorini: "JTR",
+        istanbul: "IST",
+      };
+      const matchedKey = Object.keys(CITY_TO_IATA).find((k) => cityLower.includes(k));
+      const destIata = matchedKey ? CITY_TO_IATA[matchedKey] : "DXB";
+      const originIata = destIata === "CAI" ? "DXB" : "CAI";
+
       const [hRes, fRes] = await Promise.all([
         searchLiveHotels({ city: targetCity, checkin: checkIn, checkout: checkOut, adults, currency: "USD" }).catch(() => null),
-        searchLiveFlights({ origin: "CAI", destination: targetCity.slice(0, 3).toUpperCase() === "CAI" ? "DXB" : "DXB", departureDate: checkIn, adults, currency: "USD" }).catch(() => null),
+        searchLiveFlights({ origin: originIata, destination: destIata, departureDate: checkIn, returnDate: checkOut, adults, currency: "USD" }).catch(() => null),
       ]);
-      if (fRes?.ok && fRes.offers?.length > 0) {
+
+      let liveFlightsCount = 0;
+      if (fRes?.ok && Array.isArray(fRes.offers) && fRes.offers.length > 0) {
         setLiveFlights(fRes.offers);
         setSelectedFlight(fRes.offers[0]);
+        liveFlightsCount = fRes.offers.length;
       }
-      if (hRes?.ok && (hRes as any).hotels?.length > 0) {
-        toast.success(`Loaded ${(hRes as any).hotels.length} live hotel rates + local inventory`);
-      } else {
-        toast.success(`Showing ${filteredHotels.length} curated properties`);
+
+      let liveHotelsCount = 0;
+      if (hRes?.ok && Array.isArray(hRes.hotels) && hRes.hotels.length > 0) {
+        const mappedHotels: HotelCatalogItem[] = hRes.hotels.map((h, idx) => {
+          const rawScore = Number(h.rating || 4.6);
+          const normalizedScore = rawScore <= 5 ? Number((rawScore * 2).toFixed(1)) : Number(rawScore.toFixed(1));
+          const nightPrice = Number(h.price || (h.totalAmount ? Math.round(h.totalAmount / Math.max(1, nightsCount)) : 390)) || 390;
+          const mainImg = h.image || (Array.isArray(h.images) && h.images[0]) || "/images/hotels-real/luxury_hotel_suite.jpg";
+          const galleryImgs = Array.isArray(h.images) && h.images.length > 0 ? h.images : [mainImg];
+          return {
+            id: h.hotelId || h.offerId || `live_htl_${idx}`,
+            name: h.name,
+            city: h.city || targetCity,
+            country: "",
+            address: h.address || `${h.city || targetCity} · Live Google Hotels Rate`,
+            stars: Math.min(5, Math.max(3, Math.round(Number(h.stars) || 5))),
+            reviewScore: normalizedScore,
+            reviewsCount: Number(h.reviewsCount) || 128,
+            distanceKm: 3,
+            discountPct: 18,
+            payLater: true,
+            pricePerNight: nightPrice,
+            mealPlans: ["RO", "BB", "HB"],
+            image: mainImg,
+            gallery: galleryImgs,
+            amenities: Array.isArray(h.amenities) && h.amenities.length > 0 ? h.amenities.slice(0, 8) : ["Free Wi-Fi", "Swimming Pool", "Spa", "VIP Concierge"],
+            highlights: [
+              `Live real-time rate powered by Google Hotels (${h.provider || "live"}).`,
+              `Featured room: ${h.roomName || "Luxury Suite"} (${h.boardType || "Bed & Breakfast"}).`,
+            ],
+            rooms: [
+              {
+                id: h.rateId || h.offerId || `live_rm_${idx}`,
+                name: h.roomName || "Deluxe Luxury Suite",
+                recommended: true,
+                refundable: Boolean(h.refundable),
+                mealPlan: "BB",
+                pricePerNight: nightPrice,
+                inclusions: [h.boardType || "Daily Breakfast", h.refundable ? "Free Cancellation" : "Instant Confirmation"],
+                image: mainImg,
+              },
+            ],
+          };
+        });
+        setLiveHotels(mappedHotels);
+        liveHotelsCount = mappedHotels.length;
+      }
+
+      if (!silent) {
+        if (liveHotelsCount > 0 || liveFlightsCount > 0) {
+          toast.success(`Live Google results loaded: ${liveHotelsCount} hotels & ${liveFlightsCount} flights`);
+        } else {
+          toast.success(`Showing ${filteredHotels.length} curated properties`);
+        }
       }
     } finally {
       setSearchingLive(false);
+    }
+  };
+
+  // Auto-load Live Google Flights & Google Hotels on initial open
+  useEffect(() => {
+    handleSearchLive(true, "Dubai");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const toggleVipService = (id: string) => {
+    setSelectedVipServices((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const applyFullVipBundle = () => {
+    const bundleIds = ["vip_fast_track", "vip_royal_suite_setup", "vip_esim_insurance"];
+    const hasAll = bundleIds.every((id) => selectedVipServices.includes(id));
+    if (hasAll) {
+      setSelectedVipServices((prev) => prev.filter((id) => !bundleIds.includes(id)));
+      toast.info("VIP Signature Bundle removed");
+    } else {
+      setSelectedVipServices((prev) => Array.from(new Set([...prev, ...bundleIds])));
+      toast.success("VIP Signature Bundle applied — 15% Bundle Discount unlocked!");
     }
   };
 
@@ -927,13 +1281,111 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
   const flightTotal = (serviceTab === "hotels" ? 0 : selectedFlight.price * adults + Math.round(selectedFlight.price * 0.65 * children));
   const activityTotal = selectedActivity ? selectedActivity.price * adults : 0;
   const transferTotal = selectedTransfer ? selectedTransfer.airportRate : 0;
+  const selectedVipServiceObjects = VIP_EXTRA_SERVICES.filter((s) => selectedVipServices.includes(s.id));
+  const vipServicesRawTotal = selectedVipServiceObjects.reduce((sum, s) => sum + s.price, 0);
+  const vipBundleDiscount = selectedVipServiceObjects.length >= 3 ? Math.round(vipServicesRawTotal * 0.15) : 0;
+  const vipServicesTotal = vipServicesRawTotal - vipBundleDiscount;
   const baggageTotal = (extraBagsOutbound + extraBagsReturn) * 38;
   const carbonTotal = carbonOption === "1yr" ? 45 : carbonOption === "2yr" ? 30 : carbonOption === "5yr" ? 20 : 0;
   const luggageProtTotal = luggageProtection ? 29 : 0;
-  const baseSubtotal = hotelTotal + flightTotal + activityTotal + transferTotal + baggageTotal + carbonTotal + luggageProtTotal;
+  const baseSubtotal = hotelTotal + flightTotal + activityTotal + transferTotal + vipServicesTotal + baggageTotal + carbonTotal + luggageProtTotal;
   const taxesAndFees = Math.round(baseSubtotal * 0.08);
   const grandTotal = baseSubtotal + taxesAndFees;
   const installmentAmount = Math.round(grandTotal / 3);
+
+  // ── Direct Hosted Payment Gateway Return Verification (Stripe / Tap 3DS2) ─
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get("payment_status");
+    const provider = params.get("provider");
+    if (!paymentStatus || !provider) return;
+
+    const cleanUrl = () => {
+      try {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } catch {}
+    };
+
+    if (paymentStatus === "cancelled") {
+      toast.error("Payment was cancelled. Your itinerary is still saved — you can retry anytime.");
+      cleanUrl();
+      return;
+    }
+
+    if (paymentStatus === "success") {
+      const sessionId = params.get("session_id") || undefined;
+      const chargeId = params.get("tap_id") || params.get("charge_id") || undefined;
+      let cancelled = false;
+
+      (async () => {
+        try {
+          const res = await fetch("/api/payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "verify_payment",
+              provider,
+              sessionId,
+              chargeId,
+            }),
+          });
+          const data: any = await res.json().catch(() => ({}));
+          if (cancelled) return;
+          if (!data?.ok || !data?.verified) {
+            toast.error(data?.error || "Payment verification did not confirm settlement.");
+            cleanUrl();
+            return;
+          }
+
+          let draft: any = null;
+          try {
+            const raw = sessionStorage.getItem("vanir_pending_payment_draft");
+            if (raw) draft = JSON.parse(raw);
+            sessionStorage.removeItem("vanir_pending_payment_draft");
+          } catch {}
+
+          const verifiedTxn = String(data.transactionId || sessionId || chargeId || "VERIFIED");
+          toast.success(`Payment verified via ${provider.toUpperCase()} (${verifiedTxn})`);
+          createBookingMutation.mutate({
+            packageName: draft?.packageName || `${selectedHotel.name} (${selectedRoom.name})`,
+            destination: draft?.destination || `${selectedHotel.city}, ${selectedHotel.country}`,
+            guestName: draft?.fullName || "VIP Traveler",
+            guestEmail: draft?.email || data.customerEmail || contactEmail || "guest@vanirgroup.com",
+            guestPhone: draft?.phone || contactPhone || "+201000000000",
+            customerName: draft?.fullName || "VIP Traveler",
+            customerEmail: draft?.email || data.customerEmail || contactEmail || "guest@vanirgroup.com",
+            customerPhone: draft?.phone || contactPhone || "+201000000000",
+            checkInDate: draft?.checkInDate || new Date(checkIn).getTime(),
+            checkOutDate: draft?.checkOutDate || new Date(checkOut).getTime(),
+            travelDate: draft?.checkIn || checkIn,
+            returnDate: draft?.checkOut || checkOut,
+            adults: draft?.adults || adults,
+            children: draft?.children ?? children,
+            guests: (draft?.adults || adults) + (draft?.children ?? children),
+            totalPrice: String(data.amountPaid || draft?.grandTotal || grandTotal),
+            paymentStatus: "paid",
+            notes: [
+              draft?.notes,
+              `Gateway: ${provider.toUpperCase()} LIVE VERIFIED`,
+              `Transaction ID: ${verifiedTxn}`,
+            ]
+              .filter(Boolean)
+              .join(" | "),
+          } as any);
+          cleanUrl();
+        } catch (err: any) {
+          if (!cancelled) {
+            toast.error(err?.message || "Could not verify payment settlement.");
+            cleanUrl();
+          }
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    }
+  }, []);
 
   const handleConfirmBooking = () => {
     const primaryGuest = guests[0];
@@ -963,6 +1415,9 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
         `Room: ${selectedRoom.name} (${selectedRoom.mealPlan})`,
         selectedActivity ? `Activity: ${selectedActivity.title}` : null,
         selectedTransfer ? `Transfer: ${selectedTransfer.name}` : null,
+        selectedVipServiceObjects.length > 0
+          ? `VIP Extra Services: ${selectedVipServiceObjects.map((s) => s.title).join(", ")}`
+          : null,
         `Seats: ${selectedSeatOutbound} / ${selectedSeatReturn}`,
         `Payment: ${payLaterMode ? "3-Installment Split Pay Later" : "Full Payment"}`,
       ]
@@ -1052,13 +1507,14 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
       {/* Service Category Tabs */}
       <div className="flex flex-wrap items-center gap-2">
         {[
-          { id: "flights", label: "Flights", icon: Plane },
-          { id: "hotels", label: "Hotels", icon: Building2 },
-          { id: "design", label: "Flight + Hotel", icon: Sparkles },
-          { id: "holiday", label: "Holiday", icon: Palmtree },
-          { id: "transfers", label: "Transfers", icon: Car },
-          { id: "activities", label: "Activities", icon: Compass },
-          { id: "offers", label: "All Offers", icon: Tag },
+          { id: "flights", label: "Flight Booking", icon: Plane, badgeColor: "bg-sky-500/20 text-sky-300 border-sky-400/30" },
+          { id: "hotels", label: "Hotel Booking", icon: Building2, badgeColor: "bg-amber-500/20 text-[#E5C378] border-[#C8A04F]/40" },
+          { id: "design", label: "Flight + Hotel", icon: Sparkles, badgeColor: "" },
+          { id: "holiday", label: "Holiday", icon: Palmtree, badgeColor: "" },
+          { id: "transfers", label: "Transfers", icon: Car, badgeColor: "" },
+          { id: "activities", label: "Activities", icon: Compass, badgeColor: "" },
+          { id: "vip_services", label: selectedVipServices.length > 0 ? `VIP Services (${selectedVipServices.length})` : "VIP Services", icon: ShieldCheck, badgeColor: "" },
+          { id: "offers", label: "All Offers", icon: Tag, badgeColor: "" },
         ].map((tab) => {
           const Icon = tab.icon;
           const active = serviceTab === tab.id;
@@ -1066,13 +1522,19 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
             <button
               key={tab.id}
               onClick={() => setServiceTab(tab.id as ServiceTab)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all border ${
+              className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all border ${
                 active
-                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 shadow-xs"
-                  : "bg-white/10 text-slate-300 border-transparent hover:bg-slate-200/70"
+                  ? "bg-[#C8A04F] text-[#080E1A] border-[#C8A04F] shadow-sm font-extrabold"
+                  : "bg-white/10 text-slate-200 border-white/10 hover:bg-white/15"
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
+              {tab.badgeColor ? (
+                <span className={`w-5 h-5 rounded-md flex items-center justify-center border ${active ? "bg-[#080E1A]/15 border-[#080E1A]/20 text-[#080E1A]" : tab.badgeColor}`}>
+                  <Icon className="w-3.5 h-3.5" />
+                </span>
+              ) : (
+                <Icon className="w-3.5 h-3.5" />
+              )}
               {tab.label}
             </button>
           );
@@ -1135,6 +1597,7 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
                     onMouseDown={() => {
                       setCityQuery(opt.val);
                       setCityDropdownOpen(false);
+                      if (opt.val) handleSearchLive(false, opt.val);
                     }}
                     className="text-left px-2.5 py-1.5 rounded-lg text-xs text-slate-200 hover:bg-[#E5C378]/15 hover:text-[#E5C378] transition flex items-center gap-1.5"
                   >
@@ -1146,23 +1609,56 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
             )}
           </div>
 
-          <div className="md:col-span-2 border border-white/10 rounded-xl px-3.5 py-2.5">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Check-In</label>
+          <div
+            onClick={(e) => {
+              const inp = e.currentTarget.querySelector("input");
+              if (inp) {
+                inp.focus();
+                try { (inp as any).showPicker?.(); } catch {}
+              }
+            }}
+            className="md:col-span-2 border border-white/10 hover:border-[#E5C378]/50 rounded-xl px-3.5 py-2.5 cursor-pointer transition group"
+          >
+            <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-[#E5C378] cursor-pointer">
+              <CalendarDays className="w-3 h-3 text-[#E5C378]" />
+              Check-In
+            </label>
             <input
               type="date"
               value={checkIn}
+              onClick={(e) => {
+                e.stopPropagation();
+                try { (e.currentTarget as any).showPicker?.(); } catch {}
+              }}
               onChange={(e) => setCheckIn(e.target.value)}
-              className="w-full text-sm font-semibold text-white mt-1 focus:outline-none bg-transparent"
+              className="w-full text-sm font-semibold text-white mt-1 focus:outline-none bg-transparent cursor-pointer [color-scheme:dark]"
             />
           </div>
 
-          <div className="md:col-span-2 border border-white/10 rounded-xl px-3.5 py-2.5">
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Check-Out</label>
+          <div
+            onClick={(e) => {
+              const inp = e.currentTarget.querySelector("input");
+              if (inp) {
+                inp.focus();
+                try { (inp as any).showPicker?.(); } catch {}
+              }
+            }}
+            className="md:col-span-2 border border-white/10 hover:border-[#E5C378]/50 rounded-xl px-3.5 py-2.5 cursor-pointer transition group"
+          >
+            <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-[#E5C378] cursor-pointer">
+              <CalendarDays className="w-3 h-3 text-[#E5C378]" />
+              Check-Out
+            </label>
             <input
               type="date"
               value={checkOut}
+              min={checkIn}
+              onClick={(e) => {
+                e.stopPropagation();
+                try { (e.currentTarget as any).showPicker?.(); } catch {}
+              }}
               onChange={(e) => setCheckOut(e.target.value)}
-              className="w-full text-sm font-semibold text-white mt-1 focus:outline-none bg-transparent"
+              className="w-full text-sm font-semibold text-white mt-1 focus:outline-none bg-transparent cursor-pointer [color-scheme:dark]"
             />
           </div>
 
@@ -1245,19 +1741,16 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
             <button
               type="button"
               onClick={() => {
-                if (destinationsData && Array.isArray(destinationsData) && destinationsData.length > 0) {
-                  toast.info(`Available destinations: ${destinationsData.map((d: any) => d.name).slice(0, 5).join(", ")}`);
-                } else {
-                  setCityQuery("");
-                }
+                setCityQuery("");
+                setCityDropdownOpen(true);
               }}
-              className="px-4 py-2 rounded-lg bg-[#080E1A] text-white text-xs font-semibold hover:bg-[#111C33] transition"
+              className="px-4 py-2 rounded-lg bg-[#080E1A] border border-white/10 text-white text-xs font-semibold hover:bg-[#111C33] hover:border-[#E5C378]/40 transition"
             >
               See our destinations
             </button>
             <button
               type="button"
-              onClick={handleSearchLive}
+              onClick={() => handleSearchLive(false)}
               disabled={searchingLive}
               className="px-4 py-2 rounded-lg bg-[#C8A04F] text-[#080E1A] text-xs font-extrabold hover:bg-[#B58D3D] transition disabled:opacity-60"
             >
@@ -1499,13 +1992,128 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
             </div>
           </div>
 
-          {/* Service-Specific Results: Transfers / Holiday / Hotels */}
-          {serviceTab === "transfers" ? (
+          {/* Service-Specific Results: Flights / Transfers / Activities / Holiday / Offers / Hotels */}
+          {serviceTab === "flights" ? (
+            <div className="space-y-4">
+              {(liveFlights.length > 0
+                ? liveFlights
+                : [
+                    { id: "flt_ek", airline: "Emirates · First / Business", flightNumber: "EK 928", origin: "CAI", destination: "DXB", departureTime: "11:00", arrivalTime: "16:25", duration: "3h 25m", stops: 0, cabin: "Business Class", baggage: "40kg Check-in · 14kg Cabin", price: 1480 },
+                    { id: "flt_af", airline: "Air France · La Première", flightNumber: "AF 567", origin: "CAI", destination: "CDG", departureTime: "08:45", arrivalTime: "13:50", duration: "5h 05m", stops: 0, cabin: "Business Class", baggage: "32kg × 2 Check-in · Lounge Access", price: 1890 },
+                    { id: "flt_ba", airline: "British Airways · Club World", flightNumber: "BA 154", origin: "CAI", destination: "LHR", departureTime: "09:15", arrivalTime: "13:40", duration: "5h 25m", stops: 0, cabin: "Business Class", baggage: "32kg × 2 Check-in · Fast Track", price: 1750 },
+                    { id: "flt_qr", airline: "Qatar Airways · Qsuite", flightNumber: "QR 1304", origin: "CAI", destination: "MLE", departureTime: "13:10", arrivalTime: "01:45", duration: "8h 35m", stops: 1, cabin: "Qsuite Business", baggage: "40kg Check-in · Private Suite", price: 2450 },
+                    { id: "flt_lx", airline: "SWISS · Alpine Business", flightNumber: "LX 239", origin: "CAI", destination: "GVA", departureTime: "03:45", arrivalTime: "08:15", duration: "4h 30m", stops: 0, cabin: "Business Class", baggage: "32kg × 2 Check-in · Limousine Option", price: 1620 },
+                  ]
+              ).map((flt: any, idx: number) => (
+                <div
+                  key={flt.id || idx}
+                  className="bg-[#0B111E]/90 border border-white/10 hover:border-[#E5C378]/35 rounded-2xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 transition"
+                >
+                  <div className="flex items-center gap-4">
+                    <AirlineLogoBadge flt={flt} />
+                    <div>
+                      <div className="text-sm font-bold text-white flex flex-wrap items-center gap-2">
+                        <span>{flt.airline || "Vanir Private Aviation"}</span>
+                        <span className="px-2 py-0.5 rounded bg-[#C8A04F]/15 text-[#E5C378] text-[10px] font-bold">
+                          {flt.flightNumber || "VNR-VIP"}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-300 mt-1 flex flex-wrap items-center gap-3">
+                        <span className="font-bold text-white">
+                          {flt.origin || "CAI"} {flt.departureTime || "11:00"} → {flt.destination || "DXB"} {flt.arrivalTime || "16:25"}
+                        </span>
+                        <span className="text-slate-400">· {flt.duration || "3h 30m"}</span>
+                        <span className="text-emerald-400 font-semibold">
+                          {flt.stops === 0 ? "Direct Non-Stop" : `${flt.stops || 1} Stop`}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-1">
+                        {flt.cabin || "Business Class"} · {flt.baggage || "32kg Check-in & VIP Fast Track"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-white/10 pt-3 md:pt-0">
+                    <div className="text-left md:text-right">
+                      <span className="block text-[10px] text-slate-400 uppercase">Per Passenger</span>
+                      <span className="text-xl font-extrabold text-[#E5C378]">
+                        ${Number(flt.price || 1450).toLocaleString()}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFlight(flt);
+                        setClientStep("checkout");
+                        toast.success(`Selected ${flt.airline || "Flight"} (${flt.origin || "CAI"} → ${flt.destination || "DXB"})`);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="px-4 py-2.5 rounded-lg bg-[#C8A04F] text-[#080E1A] text-xs font-extrabold hover:bg-[#B58D3D] transition whitespace-nowrap"
+                    >
+                      Select Flight
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : serviceTab === "activities" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[...customActivities, ...activitiesCatalog].map((act: any) => (
+                <div key={act.id} className="bg-[#0B111E]/90 border border-white/10 hover:border-[#E5C378]/35 rounded-2xl overflow-hidden flex flex-col transition">
+                  <div className="relative h-48">
+                    <img
+                      src={act.image || "/images/hotels-real/burj_al_arab.jpg"}
+                      alt={act.title}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/hotels-real/luxury_villa_pool.jpg"; }}
+                      className="w-full h-full object-cover"
+                    />
+                    <span className="absolute top-3 left-3 bg-[#C8A04F] text-[#080E1A] text-[11px] font-extrabold px-2.5 py-1 rounded-md">
+                      {act.duration || "VIP Experience"}
+                    </span>
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                    <div>
+                      <h3 className="text-base font-bold text-white">{act.title}</h3>
+                      <p className="text-xs text-slate-300 mt-1 line-clamp-2">{act.description}</p>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {(act.tags || ["VIP Tour"]).map((tg: string) => (
+                          <span key={tg} className="px-2 py-0.5 rounded bg-white/10 text-[10px] text-slate-200 font-semibold">
+                            {tg}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="flex items-end justify-between pt-3 border-t border-white/10">
+                      <div>
+                        <span className="block text-[11px] text-slate-400">VIP Activity Rate</span>
+                        <span className="text-xl font-extrabold text-[#E5C378]">${Number(act.price || 450).toLocaleString()}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientStep("checkout");
+                          toast.success(`Added "${act.title}" to your itinerary`);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
+                        }}
+                        className="px-4 py-2 rounded-lg bg-[#C8A04F] text-[#080E1A] text-xs font-extrabold hover:bg-[#B58D3D] transition"
+                      >
+                        Book Activity
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : serviceTab === "transfers" ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {transfersCatalog.map((car) => (
                 <div key={car.id} className="bg-[#0B111E]/90 border border-white/10 rounded-2xl overflow-hidden flex flex-col">
                   <div className="relative h-48">
-                    <img src={car.image} alt={car.name} className="w-full h-full object-cover" />
+                    <img
+                      src={car.image}
+                      alt={car.name}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/hotels-real/caimn-lobby-8343-hor-clsc.webp"; }}
+                      className="w-full h-full object-cover"
+                    />
                     <span className="absolute top-3 left-3 bg-[#C8A04F] text-[#080E1A] text-[11px] font-extrabold px-2.5 py-1 rounded-md">
                       {car.category}
                     </span>
@@ -1537,9 +2145,17 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className={viewLayout === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "space-y-4"}>
-              {serviceTab === "holiday" && Array.isArray(destinationsData) && destinationsData.slice(0, 4).map((dest: any) => (
+          ) : serviceTab === "holiday" ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(Array.isArray(destinationsData) && destinationsData.length > 0
+                ? destinationsData.slice(0, 6)
+                : [
+                    { id: "hol_maldives", name: "Maldives Private Atoll", description: "7-Night Overwater Pool Villa with seaplane transfer, sunset yacht & private butler.", price: 6850, imageUrl: "/images/hotels-real/luxury_villa_pool.jpg" },
+                    { id: "hol_paris", name: "Paris Royal Palace Escape", description: "5-Night Place Vendôme Suite, private Louvre after-hours & chauffeur Mercedes-Maybach.", price: 5400, imageUrl: "/images/hotels-real/ritz_paris.jpg" },
+                    { id: "hol_dubai", name: "Dubai Ultra-Luxury Week", description: "5-Night Burj Al Arab / Royal Suite, helicopter tour & private desert dining.", price: 4900, imageUrl: "/images/hotels-real/burj_al_arab.jpg" },
+                    { id: "hol_egypt", name: "Cairo & Luxor Royal Nile", description: "6-Night Pyramids private access, Sofitel Winter Palace & private Dahabiya Nile cruise.", price: 3950, imageUrl: "/images/hotels-real/winter_palace_luxor.jpg" },
+                  ]
+              ).map((dest: any) => (
                 <div key={`hol_${dest.id}`} className="bg-[#0B111E]/90 border border-[#E5C378]/25 rounded-2xl overflow-hidden flex flex-col">
                   <div className="relative h-48">
                     <img
@@ -1566,17 +2182,132 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
                         type="button"
                         onClick={() => {
                           setCityQuery(dest.name || "");
-                          setClientStep("details");
+                          setClientStep("checkout");
+                          toast.success(`Selected ${dest.name} Holiday Package`);
+                          window.scrollTo({ top: 0, behavior: "smooth" });
                         }}
                         className="px-4 py-2 rounded-lg bg-[#C8A04F] text-[#080E1A] text-xs font-extrabold hover:bg-[#B58D3D] transition"
                       >
-                        Explore Holiday
+                        Book Holiday
                       </button>
                     </div>
                   </div>
                 </div>
               ))}
-              {filteredHotels.map((hotel) => {
+            </div>
+          ) : serviceTab === "vip_services" ? (
+            <div className="space-y-4">
+              {/* VIP Bundle Offer Banner */}
+              <div className="bg-gradient-to-r from-[#0B111E] via-[#131B2E] to-[#0B111E] border border-[#C8A04F]/40 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-widest text-[#E5C378]">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Bespoke VIP Add-On Concierge
+                  </div>
+                  <h3 className="text-base sm:text-lg font-extrabold text-white mt-0.5">
+                    Select any 3+ VIP Services &amp; Save 15% Automatically
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    {selectedVipServiceObjects.length > 0
+                      ? `${selectedVipServiceObjects.length} service(s) added · Total: $${vipServicesTotal.toLocaleString()}${vipBundleDiscount > 0 ? ` (Saved $${vipBundleDiscount.toLocaleString()})` : ""}`
+                      : "Elevate your flight & stay with Fast Track, Maybach Chauffeur, Private Yacht & 5G eSIM."}
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={applyFullVipBundle}
+                    className="px-3.5 py-2 rounded-lg border border-[#C8A04F]/50 bg-[#C8A04F]/15 text-[#E5C378] text-xs font-extrabold hover:bg-[#C8A04F] hover:text-[#080E1A] transition"
+                  >
+                    + Full VIP Bundle (15% Off)
+                  </button>
+                  {selectedVipServiceObjects.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientStep("checkout");
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className="px-4 py-2 rounded-lg bg-[#C8A04F] text-[#080E1A] text-xs font-extrabold hover:bg-[#B58D3D] transition"
+                    >
+                      Proceed to Checkout →
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Photo-Illustrated VIP Services Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {VIP_EXTRA_SERVICES.map((svc) => {
+                  const isAdded = selectedVipServices.includes(svc.id);
+                  return (
+                    <div
+                      key={svc.id}
+                      className={`bg-[#0B111E]/95 rounded-2xl overflow-hidden flex flex-col border transition-all duration-300 ${
+                        isAdded
+                          ? "border-[#E5C378] shadow-lg shadow-[#C8A04F]/15"
+                          : "border-white/10 hover:border-[#E5C378]/40"
+                      }`}
+                    >
+                      <div className="relative h-48 overflow-hidden bg-[#02050B]">
+                        <img
+                          src={svc.image}
+                          alt={svc.title}
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/hotels-real/luxury_hotel_suite.jpg"; }}
+                          className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#0B111E] via-transparent to-black/30" />
+                        <span className="absolute top-3 left-3 bg-[#080E1A]/90 border border-[#C8A04F]/40 text-[#E5C378] text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md">
+                          {svc.category}
+                        </span>
+                        <span className="absolute top-3 right-3 bg-[#C8A04F] text-[#080E1A] text-[10px] font-extrabold px-2.5 py-1 rounded-md">
+                          {svc.badge}
+                        </span>
+                        {isAdded && (
+                          <span className="absolute bottom-3 left-3 bg-emerald-500 text-slate-950 text-[10px] font-extrabold px-2.5 py-1 rounded-full flex items-center gap-1 shadow">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Added to Booking
+                          </span>
+                        )}
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                        <div>
+                          <h3 className="text-base font-bold text-white leading-snug">{svc.title}</h3>
+                          <p className="text-xs text-slate-300 mt-1.5 leading-relaxed">{svc.description}</p>
+                        </div>
+                        <div className="flex items-end justify-between pt-3 border-t border-white/10">
+                          <div>
+                            <span className="block text-[10px] uppercase tracking-wider text-slate-400">{svc.unit}</span>
+                            <span className="text-xl font-extrabold text-[#E5C378]">+${svc.price.toLocaleString()}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              toggleVipService(svc.id);
+                              if (!isAdded) toast.success(`Added "${svc.title}" to your booking`);
+                              else toast.info(`Removed "${svc.title}"`);
+                            }}
+                            className={`px-4 py-2 rounded-lg text-xs font-extrabold transition ${
+                              isAdded
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 hover:bg-rose-500/20 hover:text-rose-300 hover:border-rose-400/40"
+                                : "bg-[#C8A04F] text-[#080E1A] hover:bg-[#B58D3D]"
+                            }`}
+                          >
+                            {isAdded ? "✓ Added (Remove)" : "+ Add Service"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className={viewLayout === "grid" ? "grid grid-cols-1 md:grid-cols-2 gap-4" : "space-y-4"}>
+              {(serviceTab === "offers"
+                ? [...filteredHotels].sort((a, b) => b.discountPct - a.discountPct)
+                : filteredHotels
+              ).map((hotel) => {
               const totalPrice = hotel.pricePerNight * nightsCount * roomsCount;
               return (
                 <div
@@ -1586,7 +2317,12 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
                   }`}
                 >
                   <div className={`relative ${viewLayout === "list" ? "sm:w-72 h-52 sm:h-auto shrink-0" : "h-52"}`}>
-                    <img src={hotel.image} alt={hotel.name} className="w-full h-full object-cover" />
+                    <img
+                      src={hotel.image}
+                      alt={hotel.name}
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/hotels-real/luxury_hotel_suite.jpg"; }}
+                      className="w-full h-full object-cover"
+                    />
                     <span className="absolute top-3 left-3 bg-[#C8A04F] text-[#080E1A] text-[11px] font-extrabold px-2.5 py-1 rounded-md shadow">
                       {hotel.discountPct}% OFF
                     </span>
@@ -1995,9 +2731,12 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
                     </span>
                   </div>
                   <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <div className="text-xs font-bold text-emerald-700">{flt.airline}</div>
-                      <div className="text-[11px] text-slate-400">{flt.flightNumber} · {flt.cabin}</div>
+                    <div className="flex items-center gap-3">
+                      <AirlineLogoBadge flt={flt} size="sm" />
+                      <div>
+                        <div className="text-xs font-bold text-[#E5C378]">{flt.airline}</div>
+                        <div className="text-[11px] text-slate-400">{flt.flightNumber} · {flt.cabin}</div>
+                      </div>
                     </div>
                     <div className="text-center">
                       <div className="text-base font-extrabold text-white">{flt.departureTime}</div>
@@ -2137,31 +2876,163 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
             ))}
           </div>
 
-          {/* Contact Details Banner */}
-          <div className="bg-[#080E1A] text-white rounded-2xl p-6 space-y-4">
-            <h4 className="text-base font-bold">Please enter contact details</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Photo-Illustrated VIP Extra Services Add-Ons */}
+          <div className="bg-[#0B111E]/95 border border-[#C8A04F]/30 rounded-2xl p-5 sm:p-6 space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <label className="block text-xs text-slate-300 mb-1">Email Address*</label>
-                <input
-                  type="email"
-                  value={contactEmail}
-                  onChange={(e) => setContactEmail(e.target.value)}
-                  placeholder="eg. guest@vanirgroup.com"
-                  className="w-full rounded-lg px-3 py-2.5 text-xs text-white bg-[#0B111E]/90"
-                />
+                <div className="inline-flex items-center gap-1.5 text-[10px] font-extrabold uppercase tracking-widest text-[#E5C378]">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Enhance Your Journey
+                </div>
+                <h4 className="text-base font-bold text-white mt-0.5">VIP Extra Services &amp; Concierge Add-Ons</h4>
+                <p className="text-[11px] text-slate-400">Select 3 or more services to unlock an automatic 15% VIP Bundle Discount.</p>
               </div>
-              <div>
-                <label className="block text-xs text-slate-300 mb-1">Phone Number*</label>
-                <input
-                  type="tel"
-                  value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
-                  placeholder="+20 100 000 0000"
-                  className="w-full rounded-lg px-3 py-2.5 text-xs text-white bg-[#0B111E]/90"
-                />
-              </div>
+              <button
+                type="button"
+                onClick={applyFullVipBundle}
+                className="px-3.5 py-2 rounded-lg border border-[#C8A04F]/50 bg-[#C8A04F]/15 text-[#E5C378] text-xs font-extrabold hover:bg-[#C8A04F] hover:text-[#080E1A] transition whitespace-nowrap"
+              >
+                + Full VIP Bundle (15% Off)
+              </button>
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              {VIP_EXTRA_SERVICES.map((svc) => {
+                const isAdded = selectedVipServices.includes(svc.id);
+                return (
+                  <div
+                    key={svc.id}
+                    onClick={() => toggleVipService(svc.id)}
+                    className={`cursor-pointer rounded-xl overflow-hidden border transition-all flex flex-col ${
+                      isAdded
+                        ? "border-[#E5C378] bg-[#C8A04F]/10 shadow-md shadow-[#C8A04F]/10"
+                        : "border-white/10 bg-[#080E1A]/80 hover:border-[#E5C378]/40"
+                    }`}
+                  >
+                    <div className="relative h-28 overflow-hidden bg-[#02050B]">
+                      <img
+                        src={svc.image}
+                        alt={svc.title}
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).src = "/images/hotels-real/luxury_hotel_suite.jpg"; }}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#080E1A] via-transparent to-black/25" />
+                      <span className="absolute top-2 left-2 bg-[#080E1A]/90 text-[#E5C378] text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded">
+                        {svc.category}
+                      </span>
+                      <span className="absolute top-2 right-2 bg-[#C8A04F] text-[#080E1A] text-[10px] font-extrabold px-2 py-0.5 rounded">
+                        +${svc.price.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="p-3 flex-1 flex flex-col justify-between gap-2">
+                      <div>
+                        <div className="text-xs font-bold text-white leading-snug">{svc.title}</div>
+                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{svc.description}</p>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-white/10">
+                        <span className="text-[10px] text-slate-400">{svc.unit}</span>
+                        <span
+                          className={`text-[11px] font-extrabold ${
+                            isAdded ? "text-emerald-400" : "text-[#E5C378]"
+                          }`}
+                        >
+                          {isAdded ? "✓ Added" : "+ Add"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Strict 4-Stage Modern Payment Gateway */}
+          <div id="strict-payment-gateway">
+            <StrictPaymentCheckout
+              packageTitle={`${selectedHotel.name} (${selectedRoom.name})`}
+              destination={`${selectedHotel.city}${selectedHotel.country ? `, ${selectedHotel.country}` : ""}`}
+              checkIn={checkIn}
+              checkOut={checkOut}
+              guestsSummary={`${adults} Adults · ${children} Child · ${roomsCount} Room`}
+              totalAmount={grandTotal}
+              dueTodayAmount={payLaterMode ? installmentAmount : grandTotal}
+              payLaterMode={payLaterMode}
+              initialName={`${guests[0]?.firstName || ""} ${guests[0]?.lastName || ""}`.trim() || user?.name || ""}
+              initialEmail={contactEmail || user?.email || ""}
+              initialPhone={contactPhone}
+              isSubmitting={createBookingMutation.isPending}
+              prepareHostedRedirect={(kyc) => {
+                try {
+                  sessionStorage.setItem(
+                    "vanir_pending_payment_draft",
+                    JSON.stringify({
+                      packageName: `${selectedHotel.name} (${selectedRoom.name})`,
+                      destination: `${selectedHotel.city}${selectedHotel.country ? `, ${selectedHotel.country}` : ""}`,
+                      fullName: kyc.fullName,
+                      email: kyc.email,
+                      phone: kyc.phone,
+                      checkIn,
+                      checkOut,
+                      checkInDate: new Date(checkIn).getTime(),
+                      checkOutDate: new Date(checkOut).getTime(),
+                      adults,
+                      children,
+                      grandTotal,
+                      notes: [
+                        `Room: ${selectedRoom.name} (${selectedRoom.mealPlan})`,
+                        `Passport: ${kyc.passportNumber} (${kyc.nationality})`,
+                        selectedActivity ? `Activity: ${selectedActivity.title}` : null,
+                        selectedTransfer ? `Transfer: ${selectedTransfer.name}` : null,
+                        selectedVipServiceObjects.length > 0
+                          ? `VIP Extra Services: ${selectedVipServiceObjects.map((s) => s.title).join(", ")}`
+                          : null,
+                        `Seats: ${selectedSeatOutbound} / ${selectedSeatReturn}`,
+                        `Plan: ${payLaterMode ? "3-Installment Split Pay Later" : "Full Payment"}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" | "),
+                    })
+                  );
+                } catch {}
+              }}
+              onCompletePayment={(payRes) => {
+                setContactEmail(payRes.email);
+                setContactPhone(payRes.phone);
+                createBookingMutation.mutate({
+                  packageName: `${selectedHotel.name} (${selectedRoom.name})`,
+                  destination: `${selectedHotel.city}${selectedHotel.country ? `, ${selectedHotel.country}` : ""}`,
+                  guestName: payRes.fullName,
+                  guestEmail: payRes.email,
+                  guestPhone: payRes.phone,
+                  customerName: payRes.fullName,
+                  customerEmail: payRes.email,
+                  customerPhone: payRes.phone,
+                  checkInDate: new Date(checkIn).getTime(),
+                  checkOutDate: new Date(checkOut).getTime(),
+                  travelDate: checkIn,
+                  returnDate: checkOut,
+                  adults,
+                  children,
+                  guests: adults + children,
+                  totalPrice: String(grandTotal),
+                  notes: [
+                    `Room: ${selectedRoom.name} (${selectedRoom.mealPlan})`,
+                    `Passport: ${payRes.passportNumber} (${payRes.nationality})`,
+                    `Payment: ${payRes.method.toUpperCase()}${payRes.cardLast4 ? ` ${payRes.cardBrand} •••• ${payRes.cardLast4}` : ""}${payRes.wireReference ? ` Ref:${payRes.wireReference}` : ""}`,
+                    `3DS Auth: ${payRes.authCode}`,
+                    selectedActivity ? `Activity: ${selectedActivity.title}` : null,
+                    selectedTransfer ? `Transfer: ${selectedTransfer.name}` : null,
+                    selectedVipServiceObjects.length > 0
+                      ? `VIP Extra Services: ${selectedVipServiceObjects.map((s) => s.title).join(", ")}`
+                      : null,
+                    `Seats: ${selectedSeatOutbound} / ${selectedSeatReturn}`,
+                    `Plan: ${payLaterMode ? "3-Installment Split Pay Later" : "Full Payment"}`,
+                  ]
+                    .filter(Boolean)
+                    .join(" | "),
+                } as any);
+              }}
+            />
           </div>
         </div>
 
@@ -2304,11 +3175,23 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
               {flightTotal > 0 && <div className="flex justify-between"><span>Flights ({adults} Adults, {children} Child)</span><span className="font-semibold">${flightTotal.toLocaleString()}</span></div>}
               {activityTotal > 0 && <div className="flex justify-between"><span>Activity</span><span className="font-semibold">${activityTotal.toLocaleString()}</span></div>}
               <div className="flex justify-between"><span>VIP Transfer</span><span className="font-semibold">${transferTotal.toLocaleString()}</span></div>
+              {selectedVipServiceObjects.length > 0 && (
+                <div className="flex justify-between text-[#E5C378]">
+                  <span>VIP Extra Services ({selectedVipServiceObjects.length})</span>
+                  <span className="font-semibold">+${vipServicesRawTotal.toLocaleString()}</span>
+                </div>
+              )}
+              {vipBundleDiscount > 0 && (
+                <div className="flex justify-between text-emerald-400">
+                  <span>VIP Bundle Discount (15%)</span>
+                  <span className="font-semibold">-${vipBundleDiscount.toLocaleString()}</span>
+                </div>
+              )}
               {(baggageTotal + carbonTotal + luggageProtTotal) > 0 && (
                 <div className="flex justify-between"><span>Extras (Bags / Eco / Protection)</span><span className="font-semibold">${(baggageTotal + carbonTotal + luggageProtTotal).toLocaleString()}</span></div>
               )}
               <div className="flex justify-between"><span>Taxes & Fees</span><span className="font-semibold">${taxesAndFees.toLocaleString()}</span></div>
-              <div className="flex justify-between pt-3 border-t border-white/10 text-sm font-extrabold text-emerald-700">
+              <div className="flex justify-between pt-3 border-t border-white/10 text-sm font-extrabold text-emerald-400">
                 <span>Total Payable</span>
                 <span>${grandTotal.toLocaleString()}</span>
               </div>
@@ -2316,12 +3199,20 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
 
             <button
               type="button"
-              onClick={handleConfirmBooking}
+              onClick={() => {
+                const el = document.getElementById("strict-payment-gateway");
+                if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                toast.info("Complete the 4 strict verification & 3DS2 payment stages to authorize this booking.");
+              }}
               disabled={createBookingMutation.isPending}
-              className="w-full py-3 rounded-xl bg-[#C8A04F] text-[#080E1A] text-sm font-extrabold hover:bg-[#B58D3D] transition disabled:opacity-60"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B58D3D] text-[#080E1A] text-sm font-extrabold hover:brightness-110 transition disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-[#C8A04F]/20"
             >
-              {createBookingMutation.isPending ? "Processing Order..." : "Confirm & Create Booking"}
+              <ShieldCheck className="w-4 h-4" />
+              {createBookingMutation.isPending ? "Authorizing Order..." : "Proceed to Strict Payment"}
             </button>
+            <p className="text-[11px] text-slate-400 text-center leading-relaxed">
+              Protected by 256-bit TLS, Luhn Checksum &amp; 3D Secure 2.0 Verification.
+            </p>
           </div>
         </aside>
       </div>
@@ -2933,11 +3824,12 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
             </div>
             <div className="space-y-0.5">
               {[
-                { label: "App", icon: AppWindow, onClick: () => { setAdminSection("create"); setClientStep("search"); setSidebarOpen(false); } },
-                { label: "Analytics", icon: BarChart3, onClick: () => { if (mode === "admin") setAdminSection("orders"); else setClientStep("search"); setSidebarOpen(false); } },
-                { label: "Banking", icon: Landmark, onClick: () => { setClientStep("checkout"); setSidebarOpen(false); } },
-                { label: "Booking", icon: Compass, onClick: () => { setAdminSection("create"); setClientStep("search"); setSidebarOpen(false); } },
-                { label: "File", icon: FolderOpen, onClick: () => { setClientStep("details"); setSidebarOpen(false); } },
+                { label: "App", icon: AppWindow, accent: "", onClick: () => { setAdminSection("create"); setClientStep("search"); setSidebarOpen(false); } },
+                { label: "Analytics", icon: BarChart3, accent: "", onClick: () => { setAdminSection("orders"); setOrderStatusFilter("all"); setSidebarOpen(false); } },
+                { label: "Banking", icon: Landmark, accent: "", onClick: () => { setAdminSection("create"); setClientStep("checkout"); setSidebarOpen(false); } },
+                { label: "Hotel Booking", icon: Building2, accent: "bg-[#C8A04F]/20 text-[#E5C378] border border-[#C8A04F]/40", onClick: () => { setAdminSection("create"); setClientStep("search"); setServiceTab("hotels"); setSidebarOpen(false); } },
+                { label: "Flight Booking", icon: Plane, accent: "bg-sky-500/20 text-sky-300 border border-sky-400/35", onClick: () => { setAdminSection("create"); setClientStep("search"); setServiceTab("flights"); setSidebarOpen(false); } },
+                { label: "File", icon: FolderOpen, accent: "", onClick: () => { setAdminSection("create"); setClientStep("details"); setSidebarOpen(false); } },
               ].map((item) => {
                 const Icon = item.icon;
                 return (
@@ -2945,9 +3837,15 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
                     key={item.label}
                     type="button"
                     onClick={item.onClick}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-[#0B111E]/90/5 hover:text-[#E5C378] transition"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-white/5 hover:text-[#E5C378] transition"
                   >
-                    <Icon className="w-4 h-4 text-slate-400" />
+                    {item.accent ? (
+                      <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${item.accent}`}>
+                        <Icon className="w-3.5 h-3.5" />
+                      </span>
+                    ) : (
+                      <Icon className="w-4 h-4 text-slate-400" />
+                    )}
                     <span className="font-medium">{item.label}</span>
                   </button>
                 );
@@ -2963,8 +3861,12 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
             <div className="space-y-0.5">
               <button
                 type="button"
-                onClick={() => { setClientStep("checkout"); setSidebarOpen(false); }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-300 hover:bg-[#0B111E]/90/5 hover:text-[#E5C378] transition"
+                onClick={() => {
+                  setSidebarOpen(false);
+                  if (user) window.location.href = "/profile";
+                  else { setAdminSection("create"); setClientStep("checkout"); }
+                }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-300 hover:bg-white/5 hover:text-[#E5C378] transition"
               >
                 <span className="flex items-center gap-3">
                   <UserCircle className="w-4 h-4 text-slate-400" />
@@ -3054,8 +3956,8 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
 
               <button
                 type="button"
-                onClick={() => { setClientStep("checkout"); setSidebarOpen(false); }}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-300 hover:bg-[#0B111E]/90/5 hover:text-[#E5C378] transition"
+                onClick={() => { setAdminSection("create"); setClientStep("checkout"); setSidebarOpen(false); }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-slate-300 hover:bg-white/5 hover:text-[#E5C378] transition"
               >
                 <span className="flex items-center gap-3">
                   <Receipt className="w-4 h-4 text-slate-400" />
@@ -3122,8 +4024,14 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
 
               <button
                 type="button"
-                onClick={() => { setClientStep("search"); setSidebarOpen(false); }}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-[#0B111E]/90/5 hover:text-[#E5C378] transition"
+                onClick={() => {
+                  setAdminSection("create");
+                  setClientStep("search");
+                  setSidebarOpen(false);
+                  toast.info("Choose your Check-In & Check-Out dates in the search bar.");
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-white/5 hover:text-[#E5C378] transition"
               >
                 <CalendarDays className="w-4 h-4 text-slate-400" />
                 <span className="font-medium">Calendar</span>
@@ -3131,7 +4039,12 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
 
               <button
                 type="button"
-                onClick={() => { setClientStep("checkout"); setSidebarOpen(false); }}
+                onClick={() => {
+                  setAdminSection("orders");
+                  setOrderStatusFilter("pending");
+                  setSidebarOpen(false);
+                  toast.info("Showing pending orders requiring action.");
+                }}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-slate-300 hover:bg-white/5 hover:text-[#E5C378] transition"
               >
                 <CheckSquare className="w-4 h-4 text-slate-400" />
@@ -3160,8 +4073,16 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
                 type="text"
                 value={quickSearch}
                 onChange={(e) => {
-                  setQuickSearch(e.target.value);
-                  setCityQuery(e.target.value);
+                  const val = e.target.value;
+                  setQuickSearch(val);
+                  setCityQuery(val);
+                  setOrderSearch(val);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && adminSection !== "orders") {
+                    setAdminSection("create");
+                    setClientStep("search");
+                  }
                 }}
                 placeholder="Search hotels, cities, or orders..."
                 className="w-full pl-9 pr-3 py-1.5 text-xs bg-white/10 border border-white/10 rounded-lg focus:outline-none focus:border-[#C8A04F]"
@@ -3179,8 +4100,13 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
               Home
             </a>
 
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#080E1A] text-[#E5C378] text-[11px] font-bold">
-              EN · USD
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#080E1A] border border-white/10 text-[#E5C378] text-[11px] font-bold">
+              <img
+                src="/images/us-flag.png"
+                alt="US English"
+                className="w-5 h-3.5 rounded-[3px] object-cover shrink-0 shadow-xs"
+              />
+              <span className="hidden sm:inline">EN · USD</span>
             </span>
 
             {/* Notifications Bell */}
@@ -3243,13 +4169,11 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
 
             {user ? (
               <a href="/profile" className="flex items-center gap-2.5 pl-1 hover:opacity-90 transition">
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name || "User"} className="w-8 h-8 rounded-full object-cover border border-[#E5C378]/50 shrink-0" />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-[#080E1A] text-[#E5C378] border border-[#E5C378]/40 font-extrabold text-xs flex items-center justify-center shrink-0">
-                    {(user.name || user.email || "U").slice(0, 2).toUpperCase()}
-                  </div>
-                )}
+                <img
+                  src={resolveUserAvatar(user.avatarUrl, user.email || user.name)}
+                  alt={user.name || "User"}
+                  className="w-8 h-8 rounded-full object-cover border border-[#E5C378]/60 shadow-sm shrink-0"
+                />
                 <div className="hidden sm:block text-left leading-tight">
                   <div className="text-xs font-bold text-white">{user.name || user.email?.split("@")[0]}</div>
                   <div className="text-[10px] text-[#E5C378]">{user.role === "admin" ? "Administrator" : "Member"}</div>
@@ -3319,23 +4243,36 @@ export function TravelOrderPlatform({ mode }: { mode: PlatformMode }) {
                 })}
               </div>
             ) : (
-              <div className="flex items-center gap-2 text-xs font-semibold">
-                {["1. Search", "2. Room Details", "3. Checkout"].map((label, i) => {
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                {(
+                  [
+                    { label: "1. Search", step: "search" },
+                    { label: "2. Room Details", step: "details" },
+                    { label: "3. Checkout", step: "checkout" },
+                  ] as const
+                ).map((item, i) => {
                   const active =
-                    (i === 0 && clientStep === "search") ||
-                    (i === 1 && clientStep === "details") ||
-                    (i === 2 && (clientStep === "checkout" || clientStep === "confirmed"));
+                    adminSection === "create" &&
+                    ((i === 0 && clientStep === "search") ||
+                      (i === 1 && clientStep === "details") ||
+                      (i === 2 && (clientStep === "checkout" || clientStep === "confirmed")));
                   return (
-                    <span
-                      key={label}
-                      className={`px-3 py-1.5 rounded-full border ${
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        setAdminSection("create");
+                        setClientStep(item.step);
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      }}
+                      className={`px-3 py-1.5 rounded-full border transition cursor-pointer ${
                         active
-                          ? "bg-[#080E1A] text-[#E5C378] border-[#080E1A]"
-                          : "bg-[#0B111E]/90 text-slate-400 border-white/10"
+                          ? "bg-[#C8A04F] text-[#080E1A] border-[#C8A04F] font-extrabold"
+                          : "bg-[#0B111E]/90 text-slate-300 border-white/10 hover:border-[#E5C378]/40 hover:text-white"
                       }`}
                     >
-                      {label}
-                    </span>
+                      {item.label}
+                    </button>
                   );
                 })}
               </div>

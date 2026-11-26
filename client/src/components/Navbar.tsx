@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { ASSETS } from "@/config/assets";
+import { resolveUserAvatar } from "@/lib/pharaonicAvatars";
 
 /* ─── Navigation Structure ─── */
 interface NavLink {
@@ -179,67 +180,6 @@ export default function Navbar() {
                 alt=""
                 className="h-9 sm:h-10 md:h-11 lg:h-12 w-auto object-contain"
               />
-              {/* Animated White Santa Hat perched on the Logo */}
-              <svg
-                viewBox="0 0 64 56"
-                aria-hidden="true"
-                className="pointer-events-none absolute -top-3.5 -right-2.5 sm:-top-4 sm:-right-3 w-7 h-7 sm:w-8 sm:h-8 drop-shadow-[0_3px_8px_rgba(255,255,255,0.45)] origin-bottom-left"
-                style={{
-                  animation: "vanirSantaBob 3.2s ease-in-out infinite",
-                }}
-              >
-                <defs>
-                  <linearGradient id="santaWhiteGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#FFFFFF" />
-                    <stop offset="65%" stopColor="#F1F5F9" />
-                    <stop offset="100%" stopColor="#CBD5E1" />
-                  </linearGradient>
-                  <linearGradient id="santaRedTrim" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#DC2626" />
-                    <stop offset="50%" stopColor="#EF4444" />
-                    <stop offset="100%" stopColor="#991B1B" />
-                  </linearGradient>
-                </defs>
-                {/* Hat Body (White Velvet) */}
-                <path
-                  d="M12 36 C16 14, 34 6, 52 16 C44 18, 42 26, 44 36 Z"
-                  fill="url(#santaWhiteGrad)"
-                  stroke="#E2E8F0"
-                  strokeWidth="1.2"
-                />
-                {/* Subtle Crimson Festive Ribbon Accent */}
-                <path
-                  d="M12.5 34.5 Q28 30 43.5 34.5 L44 37.5 Q28 33 12 37.5 Z"
-                  fill="url(#santaRedTrim)"
-                />
-                {/* Fluffy White Fur Cuff */}
-                <rect
-                  x="7"
-                  y="35"
-                  width="40"
-                  height="10"
-                  rx="5"
-                  fill="#FFFFFF"
-                  stroke="#E2E8F0"
-                  strokeWidth="1.2"
-                />
-                {/* Fluffy Pom-Pom */}
-                <circle
-                  cx="53"
-                  cy="17"
-                  r="6"
-                  fill="#FFFFFF"
-                  stroke="#E2E8F0"
-                  strokeWidth="1.2"
-                />
-              </svg>
-              <style>{`
-                @keyframes vanirSantaBob {
-                  0%, 100% { transform: rotate(10deg) translateY(0px) scale(1); }
-                  35% { transform: rotate(18deg) translateY(-2.5px) scale(1.04); }
-                  70% { transform: rotate(6deg) translateY(1px) scale(0.98); }
-                }
-              `}</style>
             </div>
             <span className="text-white font-bold text-sm sm:text-base md:text-lg lg:text-xl tracking-[0.1em] font-[var(--font-display)] group-hover:text-[var(--theme-primary)] transition-colors duration-300 hidden sm:inline">
               VANIR<span className="text-[var(--theme-primary)] group-hover:text-white transition-colors duration-300"> GROUP</span>
@@ -460,13 +400,11 @@ export default function Navbar() {
                   className="flex items-center gap-1.5 px-2 lg:px-2.5 py-1.5 text-white text-xs lg:text-sm font-medium tracking-tight hover:text-[var(--theme-primary)] transition-all duration-300 whitespace-nowrap"
                   onClick={() => setOpenDropdown(openDropdown === "user-menu" ? null : "user-menu")}
                 >
-                  {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt="" className="w-5 h-5 rounded-full object-cover border border-[var(--theme-primary)]/30" />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full bg-[var(--theme-primary)]/20 flex items-center justify-center">
-                      <User size={12} className="text-[var(--theme-primary)]" />
-                    </div>
-                  )}
+                  <img
+                    src={resolveUserAvatar(user?.avatarUrl, user?.email || user?.name)}
+                    alt={user?.name || "Profile"}
+                    className="w-6 h-6 rounded-full object-cover border border-[#D4A853]/60 shadow-sm"
+                  />
                   <span className="hidden lg:inline">{user?.name?.split(" ")[0] || "Profile"}</span>
                   <ChevronDown size={12} className={`transition-transform duration-300 ${openDropdown === "user-menu" ? "rotate-180" : ""}`} />
                 </button>
@@ -485,12 +423,12 @@ export default function Navbar() {
                         <div className="h-[2px] bg-gradient-to-r from-[var(--theme-primary)] via-[var(--theme-primary-light)] to-[var(--theme-primary)]" />
                         {/* Account Header */}
                         <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[var(--theme-primary)] to-[#b88933] flex items-center justify-center text-black font-bold text-xs shrink-0 overflow-hidden">
-                            {user?.avatarUrl ? (
-                              <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                            ) : (
-                              (user?.name || "V").charAt(0).toUpperCase()
-                            )}
+                          <div className="w-10 h-10 rounded-full border border-[#D4A853]/60 shrink-0 overflow-hidden shadow-md">
+                            <img
+                              src={resolveUserAvatar(user?.avatarUrl, user?.email || user?.name)}
+                              alt={user?.name || "Vanir Traveler"}
+                              className="w-full h-full object-cover"
+                            />
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs font-semibold text-white truncate">{user?.name || "Vanir Traveler"}</p>

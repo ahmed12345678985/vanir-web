@@ -2,10 +2,10 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch, Redirect } from "wouter";
+import { Route, Switch, Redirect, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PageLoadingSkeleton from "./components/PageLoadingSkeleton";
-import NewYearFestiveOverlay from "./components/NewYearFestiveOverlay";
+import { initDynamicGoogleAnalytics, trackPageView } from "./lib/googleAnalytics";
 
 // Core Public Pages (only Home synchronous for instantaneous first paint)
 import Home from "./pages/Home";
@@ -280,6 +280,20 @@ function Router() {
   );
 }
 
+function GoogleAnalyticsTracker() {
+  const [location] = useLocation();
+
+  useEffect(() => {
+    initDynamicGoogleAnalytics();
+  }, []);
+
+  useEffect(() => {
+    trackPageView(location + window.location.search);
+  }, [location]);
+
+  return null;
+}
+
 function App() {
   const [mountConcierge, setMountConcierge] = useState(false);
 
@@ -303,10 +317,10 @@ function App() {
   return (
     <ErrorBoundary>
       <TooltipProvider>
+        <GoogleAnalyticsTracker />
         <Toaster />
         {/* <PromoNotifications /> */} {/* Disabled: Removed popup notifications and offers */}
         <Router />
-        <NewYearFestiveOverlay />
         {mountConcierge && (
           <Suspense fallback={null}>
             <PublicAIConcierge />
