@@ -5,6 +5,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch, Redirect, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import PageLoadingSkeleton from "./components/PageLoadingSkeleton";
+import SmartAppBanner from "./components/SmartAppBanner";
 import { initDynamicGoogleAnalytics, trackPageView } from "./lib/googleAnalytics";
 
 // Core Public Pages (only Home synchronous for instantaneous first paint)
@@ -321,6 +322,7 @@ function App() {
         <Toaster />
         {/* <PromoNotifications /> */} {/* Disabled: Removed popup notifications and offers */}
         <Router />
+        <SmartAppBanner />
         {mountConcierge && (
           <Suspense fallback={null}>
             <PublicAIConcierge />
